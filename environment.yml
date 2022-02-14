@@ -1,0 +1,13 @@
+name: hierarchy-generation
+channels:
+  - conda-forge
+  - defaults
+  - pytorch
+dependencies:
+  - python=3.7
+  - pytorch=1.6.0
+  - torchvision
+  - pip
+  - pip:
+      - mmcv-full -f https://download.openmmlab.com/mmcv/dist/cu101/torch1.6.0/index.html
+      - mmsegmentation
