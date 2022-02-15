@@ -14,13 +14,18 @@ The recursive nature of the algorithm means that we create a hierarchy as we seg
 
 # Setup
 
-- Create and activate the conda environment
+- Create and activate the conda environment.
   ```bash
   conda env create -f environment.yml
   conda activate hierarchy-generation
   ```
-- Download the checkpoints file and the config file (SETR-MLA trained on ADE20k from the [MMSegmentation Model Zoo](https://github.com/open-mmlab/mmsegmentation/blob/master/configs/setr/README.md))
+
+- Download the [MMSegmentation repository](https://github.com/open-mmlab/mmsegmentation), which we need for the model configs.
+  ```bash
+  git clone git@github.com:open-mmlab/mmsegmentation.git
+  ```
+
+- Download the checkpoints file (SETR-MLA trained on ADE20k from the [MMSegmentation Model Zoo](https://github.com/open-mmlab/mmsegmentation/blob/master/configs/setr/README.md)).
   ```bash
   curl --output checkpoints.pth https://download.openmmlab.com/mmsegmentation/v0.5/setr/setr_mla_512x512_160k_b8_ade20k/setr_mla_512x512_160k_b8_ade20k_20210619_191118-c6d21df0.pth
-  curl --output config.py https://github.com/open-mmlab/mmsegmentation/blob/master/configs/setr/setr_mla_512x512_160k_b8_ade20k.py
   ```
