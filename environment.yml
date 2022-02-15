@@ -6,8 +6,8 @@ channels:
 dependencies:
   - python=3.7
   - pytorch=1.6.0
-  - torchvision
-  - pip
+  - torchvision=0.11.0a0
+  - pip=22.0.3
   - pip:
       - mmcv-full -f https://download.openmmlab.com/mmcv/dist/cu101/torch1.6.0/index.html
-      - mmsegmentation
+      - mmsegmentation==0.21.1
