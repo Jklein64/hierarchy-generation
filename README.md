@@ -20,10 +20,11 @@ The recursive nature of the algorithm means that we create a hierarchy as we seg
   conda activate hierarchy-generation
   ```
 
-- Download the [MMSegmentation repository](https://github.com/open-mmlab/mmsegmentation), which we need for the model configs.
+- Download the [MMSegmentation repository](https://github.com/open-mmlab/mmsegmentation), which we need for the model configs.  
   ```bash
   git clone git@github.com:open-mmlab/mmsegmentation.git
   ```
+  If you want to make inferences on the CPU, then you will need to replace all instances of the string "SyncBN" in `configs/setr/setr_mla_512x512_160k_b8_ade20k.py` and `configs/_base_/models/setr_mla.py` with "BN" ([more info](https://github.com/open-mmlab/mmsegmentation/issues/292)).
 
 - Download the checkpoints file (SETR-MLA trained on ADE20k from the [MMSegmentation Model Zoo](https://github.com/open-mmlab/mmsegmentation/blob/master/configs/setr/README.md)).
   ```bash
