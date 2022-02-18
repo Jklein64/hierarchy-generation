@@ -20,7 +20,7 @@ def main():
 
     # get original image, which has shape H x W x 3
     image = np.array(Image.open(args.image))
-    # add a new axis to the image for alpha
+    # add a new axis to the image for alpha. Roll is needed to add to the end
     image = np.roll(np.insert(image, 0, 255, axis=-1), -1, axis=-1)
 
     for i, label in enumerate(np.unique(result)):
