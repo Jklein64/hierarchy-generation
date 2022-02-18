@@ -20,6 +20,8 @@ def main():
 
     # get original image, which has shape H x W x 3
     image = np.array(Image.open(args.image))
+    # add a new axis to the image for alpha
+    image = np.roll(np.insert(image, 0, 255, axis=-1), -1, axis=-1)
 
     for i, label in enumerate(np.unique(result)):
         # make new image with same dimensions
@@ -27,7 +29,7 @@ def main():
         # set pixels to result where label is label
         np.copyto(output, image, where=np.expand_dims(result == label, axis=-1))
         # save as "segment-i.png"
-        ...
+        Image.fromarray(output).save(f"output/segment-{i}.png")
 
 if __name__ == "__main__":
     main()
