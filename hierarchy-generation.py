@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 
 from mmseg.apis import inference_segmentor, init_segmentor
+from scipy.ndimage import label
 from PIL import Image
 import numpy as np
 
@@ -13,8 +14,19 @@ def main():
     args = parser.parse_args()
 
     segments = segment_image(np.array(Image.open(args.image)), args.config, args.checkpoints)
-    for i, segment in enumerate(segments):
-        Image.fromarray(segment).save(f"output/segment-{i}.png")
+    contigous_segments = []
+
+    for segment in segments:
+        # label() expects a 2D array, so we flatten by summing
+        labeled, _ = label(np.sum(segment, axis=-1))
+        # get all of the contiguous regions of the segment
+        contiguous_subsegments = separate_by_label(segment, labeled)
+        # collect the contiguous regions
+        for contigous_subsegment in contiguous_subsegments:
+            contigous_segments.append(contigous_subsegment)
+    
+    for i, s in enumerate(contigous_segments):
+        Image.fromarray(s).save(f"output/segment-{i}.png")
 
 
 def segment_image(image, config, checkpoints):
