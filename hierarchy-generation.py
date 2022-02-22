@@ -23,9 +23,9 @@ def segment_image(image, config, checkpoints):
     # Figure out how to use CUDA later, if it's even possible on M1
     model = init_segmentor(config, checkpoints, device="cpu")
     # result has shape 1 x H x W, storing an integer label
-    result = inference_segmentor(model, image)[0]
+    result = inference_segmentor(model, image[:,:,0:3])[0]
     # add a new axis to the image for alpha. Roll is needed to add to the end
-    image = np.roll(np.insert(image, 0, 255, axis=-1), -1, axis=-1)
+    image = np.roll(np.insert(image[:,:,0:3], 0, 255, axis=-1), -1, axis=-1)
     
     segments = []
     for label in np.unique(result):
