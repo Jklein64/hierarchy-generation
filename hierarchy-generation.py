@@ -4,6 +4,7 @@ from mmseg.apis import inference_segmentor, init_segmentor
 from PIL import Image
 import numpy as np
 
+
 def main():
     parser = ArgumentParser(description="Generate a segmentation hierarchy from an image.")
     parser.add_argument("image", help="Image file")
@@ -37,6 +38,7 @@ def segment_image(image, config, checkpoints):
         segments.append(output)
 
     return segments        
+
 
 if __name__ == "__main__":
     main()
