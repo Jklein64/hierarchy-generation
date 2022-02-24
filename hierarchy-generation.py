@@ -14,7 +14,7 @@ def main():
     args = parser.parse_args()
 
     segments = segment_image(np.array(Image.open(args.image)), args.config, args.checkpoints)
-    contigous_segments = []
+    contiguous_segments = []
 
     for segment in segments:
         # label() expects a 2D array, so we flatten by summing
@@ -23,9 +23,9 @@ def main():
         contiguous_subsegments = separate_by_label(segment, labeled)
         # collect the contiguous regions
         for contigous_subsegment in contiguous_subsegments:
-            contigous_segments.append(contigous_subsegment)
+            contiguous_segments.append(contigous_subsegment)
     
-    for i, s in enumerate(contigous_segments):
+    for i, s in enumerate(contiguous_segments):
         Image.fromarray(s).save(f"output/segment-{i}.png")
 
 
