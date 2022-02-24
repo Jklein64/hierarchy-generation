@@ -57,5 +57,20 @@ def separate_by_label(array, label_array):
     return segments
 
 
+def bounding_box(array):
+    """Given a two-dimensional array, returns a tuple of slices which form the tightest-fitting rectangle around the non-zero values."""
+    # create list of rows and columns where entries are 
+    # False if the whole row or column is zero (True otherise)
+    rows = np.any(array, axis=1)
+    cols = np.any(array, axis=0)
+    # np.nonzero(rows or cols)[0] contains indices where the 
+    # first dimension, the entire row or column, is zero.
+    # arr[[0, -1]] gets the first and last values as an array
+    ymin, ymax = np.nonzero(rows)[0][[0, -1]]
+    xmin, xmax = np.nonzero(cols)[0][[0, -1]]
+    # create a tuple of slices, which can be used to index an array
+    return (slice(ymin, ymax+1), slice(xmin, xmax+1))
+
+
 if __name__ == "__main__":
     main()
