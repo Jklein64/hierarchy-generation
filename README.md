@@ -14,7 +14,7 @@ The recursive nature of the algorithm means that we create a hierarchy as we seg
 
 # Setup
 
-- Create and activate the conda environment.
+- Install [anaconda](https://www.anaconda.com/products/individual)/[miniconda](https://docs.conda.io/en/latest/miniconda.html), then create and activate the conda environment.
 
   ```bash
   conda env create -f environment.yml
