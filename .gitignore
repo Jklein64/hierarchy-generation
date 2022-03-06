@@ -1,4 +1,5 @@
 checkpoints.pth
+senformer_swin_large_512x512_coco.pth
 .vscode/
 .DS_Store
 output/
