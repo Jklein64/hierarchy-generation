@@ -12,3 +12,6 @@ dependencies:
   - pip:
       - mmcv-full==1.4.5 -f https://download.openmmlab.com/mmcv/dist/cpu/torch1.8.0/index.html
       - mmsegmentation
+      # for SenFormer
+      - timm
+      - einops
