@@ -10,5 +10,5 @@ dependencies:
   - scipy=1.1.0
   - pip
   - pip:
-      - mmcv-full -f https://download.openmmlab.com/mmcv/dist/cpu/torch1.8.0/index.html
+      - mmcv-full==1.4.5 -f https://download.openmmlab.com/mmcv/dist/cpu/torch1.8.0/index.html
       - mmsegmentation
