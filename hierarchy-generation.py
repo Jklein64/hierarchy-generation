@@ -71,6 +71,10 @@ def bounding_box(array):
     # create a tuple of slices, which can be used to index an array
     return (slice(ymin, ymax+1), slice(xmin, xmax+1))
 
+def all_segments(original, model, result):
+    """Given the original image, the model specification, and the result of a segmentation, create and return an image showing the segments."""
+    return model.show_result(original, result)
+
 
 if __name__ == "__main__":
     main()
