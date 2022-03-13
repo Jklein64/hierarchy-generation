@@ -10,7 +10,11 @@
             "request": "launch",
             "program": "${file}",
             "console": "internalConsole",
-            "args": ["./image.png", "./mmsegmentation/configs/setr/setr_mla_512x512_160k_b8_ade20k.py", "./checkpoints.pth"]
+            "args": [
+                "./image.png", 
+                "./SenFormer/senformer_configs/senformer/coco-stuff10k/senformer_fpnt_swin_large_512x512_80k_coco.py",
+                "./senformer_swin_large_512x512_coco.pth",
+            ]
         }
     ]
 }
