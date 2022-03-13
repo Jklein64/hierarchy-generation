@@ -1,6 +1,6 @@
 [submodule "mmsegmentation"]
 	path = mmsegmentation
-	url = https://github.com/open-mmlab/mmsegmentation.git
+	url = https://github.com/Jklein64/mmsegmentation.git
 [submodule "SenFormer"]
 	path = SenFormer
-	url = https://github.com/WalBouss/SenFormer.git
+	url = https://github.com/Jklein64/SenFormer.git
