@@ -19,13 +19,17 @@ def main():
     #     for j in range(0, i):
     #         ...
 
-    print(wasserstein_image_distance(superpixels[135], superpixels[136]))
+    # print(wasserstein_image_distance(superpixels[135], superpixels[136]))
+    print(wasserstein_image_distance(superpixels[137], superpixels[138]))
 
 def wasserstein_image_distance(pixels_1: np.ndarray, pixels_2: np.ndarray) -> float:
     """Compute the Wasserstein or Earth Mover's distance between the given sets of pixels.  This function does not care what format the pixels are specified in, as long as they have r, g, and b components, but the format will affect whether or not you can compare outputs."""
     # remove completely transparent pixels
     pixels_1 = pixels_1[pixels_1[..., -1] != 0]
     pixels_2 = pixels_2[pixels_2[..., -1] != 0]
+    # early return for irrelevant superpixels to avoid divide by zero
+    if len(pixels_1) == 0 and len(pixels_2) == 0:
+        return 0
     # compute and normalize (by pixel count) color histograms for each channel
     red_1, green_1, blue_1 = map(lambda h: h / len(pixels_1), color_histograms(pixels_1))
     red_2, green_2, blue_2 = map(lambda h: h / len(pixels_2), color_histograms(pixels_2))
