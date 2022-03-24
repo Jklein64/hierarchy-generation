@@ -1,5 +1,5 @@
 from __future__ import annotations
-from skimage.segmentation import slic, mark_boundaries
+from skimage.segmentation import slic
 from PIL import Image
 import ot, numpy as np
 
@@ -10,26 +10,25 @@ def main():
     image = original[..., 0:3] / 255
     # labels is an array which maps each pixel location to a segment label
     labels = slic(image, 200, start_label=0, multichannel=True)
+
     # superpixels is an array of pixels for each label
     superpixels = [original[labels == label] for label in np.unique(labels)]
+    # isolate superpixels which overlap the segment region of interest
+    opaque = [label for (label, p) in enumerate(superpixels) if np.any(p[..., -1] != 0)]
+    superpixels = [superpixels[i] for i in opaque]
+    # create the list of pixel locations corresponding to each visible superpixel
+    indices = [np.column_stack(np.where(labels == label)) for label in opaque]
 
     # create lower-triangular distances matrix
-    # distances = np.zeros((len(superpixels), len(superpixels)))
-    # for i in range(0, len(superpixels)):
-    #     for j in range(0, i):
-    #         ...
+    distances = np.zeros((len(superpixels), len(superpixels)))
+    for i in range(0, len(superpixels)):
+        for j in range(0, i):
+            distances[i, j] = wasserstein_image_distance(superpixels[i], superpixels[j])
 
-    # print(wasserstein_image_distance(superpixels[135], superpixels[136]))
-    print(wasserstein_image_distance(superpixels[137], superpixels[138]))
+    print(distances)
 
 def wasserstein_image_distance(pixels_1: np.ndarray, pixels_2: np.ndarray) -> float:
-    """Compute the Wasserstein or Earth Mover's distance between the given sets of pixels.  This function does not care what format the pixels are specified in, as long as they have r, g, and b components, but the format will affect whether or not you can compare outputs."""
-    # remove completely transparent pixels
-    pixels_1 = pixels_1[pixels_1[..., -1] != 0]
-    pixels_2 = pixels_2[pixels_2[..., -1] != 0]
-    # early return for irrelevant superpixels to avoid divide by zero
-    if len(pixels_1) == 0 and len(pixels_2) == 0:
-        return 0
+    """Compute the Wasserstein or Earth Mover's distance between the given sets of pixels.  This function does not care what format the pixels are specified in, as long as they have r, g, and b components, but the format will affect whether or not you can compare outputs.  Note that this function will error if either of the lists of pixels is entirely transparent."""
     # compute and normalize (by pixel count) color histograms for each channel
     red_1, green_1, blue_1 = map(lambda h: h / len(pixels_1), color_histograms(pixels_1))
     red_2, green_2, blue_2 = map(lambda h: h / len(pixels_2), color_histograms(pixels_2))
@@ -47,7 +46,6 @@ def wasserstein_image_distance(pixels_1: np.ndarray, pixels_2: np.ndarray) -> fl
     wasserstein_red = np.sum(optimal_flow_red * distance)
     wasserstein_green = np.sum(optimal_flow_green * distance)
     wasserstein_blue = np.sum(optimal_flow_blue * distance)
-    print(wasserstein_red, wasserstein_green, wasserstein_blue)
     # average the channel-based distances to get final metric
     return sum([wasserstein_red, wasserstein_green, wasserstein_blue]) / 3
 
@@ -61,7 +59,6 @@ def color_histograms(pixels: np.ndarray) -> list[np.ndarray]:
         # needs to be big enough to store a count! uint8 won't do!
         histogram = np.zeros((2 ** 8), dtype=np.uint64)
         values, counts = np.unique(channel, return_counts=True)
-        # there's someting fishy here
         histogram[values] = counts
         histograms.append(histogram)
     return histograms
