@@ -21,9 +21,10 @@ def main():
 
     # create lower-triangular distances matrix
     distances = np.zeros((len(superpixels), len(superpixels)))
-    for i in range(0, len(superpixels)):
-        for j in range(0, i):
-            distances[i, j] = wasserstein_image_distance(superpixels[i], superpixels[j])
+    # we are interested in values below the diagonal but not including it, so k = -1
+    # the diagonal would measure the distance from each superpixel to itself
+    for i, j in np.column_stack(np.tril_indices(len(superpixels), k=-1)):
+        distances[i, j] = wasserstein_image_distance(superpixels[i], superpixels[j])
 
     print(distances)
 
