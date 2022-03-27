@@ -55,8 +55,8 @@ def wasserstein_image_distance(pixels_1: np.ndarray, pixels_2: np.ndarray) -> fl
     wasserstein_red = np.sum(optimal_flow_red * distance)
     wasserstein_green = np.sum(optimal_flow_green * distance)
     wasserstein_blue = np.sum(optimal_flow_blue * distance)
-    # average the channel-based distances to get final metric
-    return sum([wasserstein_red, wasserstein_green, wasserstein_blue]) / 3
+    # sum the channel-based distances to get final metric
+    return wasserstein_red + wasserstein_green + wasserstein_blue
 
 
 def color_histograms(pixels: np.ndarray) -> list[np.ndarray]:
