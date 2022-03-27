@@ -15,11 +15,11 @@ def main():
     superpixels = [original[labels == label] for label in np.unique(labels)]
     # isolate superpixels which overlap the segment region of interest
     opaque = [label for (label, p) in enumerate(superpixels) if np.any(p[..., -1] != 0)]
-    superpixels = [superpixels[i] for i in opaque]
+    superpixels = [superpixels[label] for label in opaque]
     # create the list of pixel locations corresponding to each visible superpixel
-    indices = [np.column_stack(np.where(labels == label)) for label in opaque]
+    pixel_indices = [np.column_stack(np.where(labels == label)) for label in opaque]
 
-    # create lower-triangular distances matrix
+    # create (initially) lower-triangular distances matrix
     distances = np.zeros((len(superpixels), len(superpixels)))
     # we are interested in values below the diagonal but not including it, so k = -1
     # the diagonal would measure the distance from each superpixel to itself
@@ -29,7 +29,7 @@ def main():
     print(distances)
 
 def wasserstein_image_distance(pixels_1: np.ndarray, pixels_2: np.ndarray) -> float:
-    """Compute the Wasserstein or Earth Mover's distance between the given sets of pixels.  This function does not care what format the pixels are specified in, as long as they have r, g, and b components, but the format will affect whether or not you can compare outputs.  Note that this function will error if either of the lists of pixels is entirely transparent."""
+    """Compute the Wasserstein or Earth Mover's distance between the given sets of integer-valued 8-bit pixels."""
     # ignore pixels from the superpixels which are outside of the segment,
     # but where the superpixel still has some pixels inside the segment
     pixels_1 = pixels_1[pixels_1[..., -1] != 0]
