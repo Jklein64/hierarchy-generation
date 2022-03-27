@@ -25,7 +25,11 @@ def main():
     # the diagonal would measure the distance from each superpixel to itself
     for i, j in np.column_stack(np.tril_indices(len(superpixels), k=-1)):
         distances[i, j] = wasserstein_image_distance(superpixels[i], superpixels[j])
+    # make distances an actual adjacency matrix
+    distances = distances + np.transpose(distances)
 
+    
+# superpixels_to_join = np.column_stack(distance_indices)[np.where(distances[distance_indices] < 0.01)]
     print(distances)
 
 def wasserstein_image_distance(pixels_1: np.ndarray, pixels_2: np.ndarray) -> float:
