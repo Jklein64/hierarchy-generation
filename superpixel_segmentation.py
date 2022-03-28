@@ -13,13 +13,16 @@ def main():
     image = original[..., 0:3] / 255
     # labels is an array which maps each pixel location to a segment label
     labels = slic(image, 200, start_label=0, multichannel=True)
+    # mask labels by setting label of pixels outside segment to -1
+    labels = np.where(original[..., -1] == 0, -1, labels)
 
-    # superpixels is an array of pixels for each label
-    superpixels = [original[labels == label] for label in np.unique(labels)]
-    # isolate superpixels which overlap the segment region of interest
-    opaque = [label for (label, p) in enumerate(superpixels) if np.any(p[..., -1] != 0)]
+    # superpixels is an array of pixels for each label; iterate over range to exclude -1
+    superpixels = [original[labels == label] for label in range(len(labels))]
+    # find superpixel indices for superpixels which aren't empty lists due to the mask
+    opaque = [label for (label, pixel) in enumerate(superpixels) if len(pixel) > 0]
+    # remove superpixels which are empty lists due to the mask
     superpixels = [superpixels[label] for label in opaque]
-    # create the list of pixel locations corresponding to each visible superpixel
+    # create the list of pixel locations corresponding to each superpixel
     pixel_indices = [np.where(labels == label) for label in opaque]
 
     # create (initially) lower-triangular distances matrix
@@ -58,10 +61,6 @@ def connected_within_threshold(weighed: np.ndarray, delta: float = 0.01):
 def wasserstein_image_distance(pixels_1: np.ndarray, pixels_2: np.ndarray) -> float:
     """Compute the Wasserstein or Earth Mover's distance between the given sets of integer-valued 8-bit pixels."""
     import ot
-    # ignore pixels from the superpixels which are outside of the segment,
-    # but where the superpixel still has some pixels inside the segment
-    pixels_1 = pixels_1[pixels_1[..., -1] != 0]
-    pixels_2 = pixels_2[pixels_2[..., -1] != 0]
     # compute and normalize (by pixel count) color histograms for each channel
     red_1, green_1, blue_1 = map(lambda h: h / len(pixels_1), color_histograms(pixels_1))
     red_2, green_2, blue_2 = map(lambda h: h / len(pixels_2), color_histograms(pixels_2))
