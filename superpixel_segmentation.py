@@ -38,12 +38,15 @@ def main():
     from scipy.sparse.csgraph import connected_components
     n, superpixel_labels = connected_components(distances < 0.01, directed=False)
 
-    labelled_image = np.zeros(np.shape(original)[0:2], dtype=int)
+    labelled_image = np.ones(np.shape(original)[0:2], dtype=int) * -1
     for index, label in enumerate(superpixel_labels):
         labelled_image[pixel_indices[index]] = label
 
-    from skimage.segmentation import mark_boundaries
-    Image.fromarray((mark_boundaries(image, labelled_image) * 255).astype(np.uint8)).show()
+    avg_image = np.zeros_like(original)
+    for label in range(n):
+        avg_image[labelled_image == label] = np.mean(original[labelled_image == label], axis=0).astype(int)
+
+    Image.fromarray(avg_image).show()
 
     print(distances)
 
