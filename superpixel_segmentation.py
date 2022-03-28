@@ -32,27 +32,18 @@ def main():
     distances = distances + np.transpose(distances)
 
     # merge connected regions
-    regions = []
-    for component in connected_within_threshold(distances, 0.02):
-        # map superpixel index to the superpixel's pixel locations
-        indices = [pixel_indices[i] for i in component]
-        # concatenate; must be manual since np.where is a tuple
-        concatenated_rows = []
-        concatenated_cols = []
-        for rows, cols in indices:
-            concatenated_rows.append(rows)
-            concatenated_cols.append(cols)
-        # tuple allows for slicing of numpy arrays
-        regions.append((
-            np.concatenate(concatenated_rows),
-            np.concatenate(concatenated_cols)))
-    for region in regions:
-        image = np.zeros_like(original)
-        image[region] = original[region]
+    from scipy.sparse.csgraph import connected_components
+    n, superpixel_labels = connected_components(distances < 0.01, directed=False)
 
-    
-# superpixels_to_join = np.column_stack(distance_indices)[np.where(distances[distance_indices] < 0.01)]
+    labelled_image = np.zeros(np.shape(original)[0:2], dtype=int)
+    for index, label in enumerate(superpixel_labels):
+        labelled_image[pixel_indices[index]] = label
+
+    from skimage.segmentation import mark_boundaries
+    Image.fromarray((mark_boundaries(image, labelled_image) * 255).astype(np.uint8)).show()
+
     print(distances)
+
 
 def connected_within_threshold(weighed: np.ndarray, delta: float = 0.01):
     """Calculate the sets of connected components of a weighed undirected graph whose weights are within a threshold delta."""
