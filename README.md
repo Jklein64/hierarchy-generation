@@ -28,7 +28,15 @@ To continue testing my hypothesis that operating on a view of the original image
 | :-------------------------------: | :-----------------------------: | :----------------------------: | :------------------------------: |
 |     initial segment (cropped)     |     segmentation of initial     |   view of original (cropped)   |       segmentation of view       |
 
-_currently, I am experimenting with non-network-based semantic segmentation. I am interested in merging the results of a superpixels segmentation, which doesn't require a network, in order to take advantage of the segmentation's edge-accuracy while accounting for oversegmentation. See [this journal entry about my own brainstorming](https://iron-salesman-ddf.notion.site/Think-about-Superpixels-approach-21ddce7bfbb5412e8c28ba8cf17b7349) or [this one about Yotam's suggestions](https://iron-salesman-ddf.notion.site/Think-about-Yotam-s-suggestion-096567b30d9f48b19b650bc91789e1f1) for more information about possible approaches._
+Having determined that neural network-based segmentation cannot perform recursive segmentation, I decided to segment with [superpixels](https://pyimagesearch.com/2014/07/28/a-slic-superpixel-tutorial-using-python/), which don't depend on a neural network. Superpixels oversegment the image, so I compute the similarity between every pair of superpixels using the Wasserstein distance and then combine sufficiently similar superpixels into non-contiguous regions. This worked, but took a long time to compute (around four seconds) and, in a different test case, merged superpixels which were part of different semantic regions that happened to have similar color distributions.
+
+The images below illustrate the iterative merging of the superpixels for different values of delta, the similarity threshold. Delta allows for interpolation between merging none of the superpixels and all of the superpixels. Images with larger delta values have more general regions, each of which are a union of some of the regions in the image with a smaller delta value. Sweeping values for delta creates a merging schedule that we can turn into a hierarchy.
+
+| ![](images/superpixels-0.00.png) | ![](images/superpixels-0.01.png) | ![](images/superpixels-0.02.png) | ![](images/superpixels-0.05.png) |
+| :------------------------------: | :------------------------------: | :------------------------------: | :------------------------------: |
+|   most detailed; delta = 0.00    |   more detailed; delta = 0.01    |    more general; delta = 0.02    |    most general; delta = 0.05    |
+
+_currently, I am working on a revised implementation which takes constraint locations and uses them to find a desireable value for delta. I am also experimenting with variations on the distance metric to increase performance, as well as integration of [YOLO](https://github.com/ultralytics/yolov5) to identify superpixels corresponding to objects in the image that need to be kept together as a group and not merged with others._
 
 # Setup
 
