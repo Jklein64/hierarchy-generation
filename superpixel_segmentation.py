@@ -14,7 +14,7 @@ def main():
     # labels is an array which maps each pixel location to a segment label
     labels = slic(image, 200, start_label=0, multichannel=True)
     # mask labels by setting label of pixels outside segment to -1
-    labels = np.where(original[..., -1] == 0, -1, labels)
+    labels = np.where(original[..., -1] == 0 if np.shape(original)[-1] == 4 else False, -1, labels)
 
     # superpixels is an array of pixels for each label; iterate over range to exclude -1
     superpixels = [original[labels == label] for label in range(len(labels))]
@@ -36,7 +36,7 @@ def main():
 
     # merge connected regions
     from scipy.sparse.csgraph import connected_components
-    n, superpixel_labels = connected_components(distances < 0.01, directed=False)
+    n, superpixel_labels = connected_components(distances < 0.02, directed=False)
 
     labelled_image = np.ones(np.shape(original)[0:2], dtype=int) * -1
     for index, label in enumerate(superpixel_labels):
