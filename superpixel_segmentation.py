@@ -11,10 +11,8 @@ def main():
     # given original, which is a segment, possibly with opacity;
     # transparent if within bounding box but outside segment
     original = np.array(Image.open("./output/segment-1.png"))
-    # slic() expects images to be floating point and 3-channel
-    image = original[..., 0:3] / 255
     # labels is an array which maps each pixel location to a segment label
-    labels = slic(image, 200, start_label=0, multichannel=True)
+    labels = slic(original[..., 0:3] / 255, 200, start_label=0, multichannel=True)
     # mask labels by setting label of pixels outside segment to -1
     labels = np.where(original[..., -1] == 0 if np.shape(original)[-1] == 4 else False, -1, labels)
 
@@ -54,6 +52,7 @@ def connected_within_threshold(superpixel_pixels: list, image_shape: tuple, dist
     for index, label in enumerate(superpixel_labels):
         labelled[superpixel_pixels[index]] = label
     return labelled
+
 
 def distances_matrix(superpixels: list[np.ndarray], metric: Callable[[np.ndarray, np.ndarray], float]) -> np.ndarray:
     """Create a matrix which contains the metric-based distances between every pair of the given superpixels."""
@@ -102,6 +101,7 @@ def color_histograms(pixels: np.ndarray) -> list[np.ndarray]:
         histogram[values] = counts
         histograms.append(histogram)
     return histograms
+
 
 
 if __name__ == "__main__":
