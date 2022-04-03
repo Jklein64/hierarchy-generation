@@ -35,15 +35,11 @@ def main():
     distances = distances + np.transpose(distances)
 
     # merge connected regions
-    from scipy.sparse.csgraph import connected_components
-    n, superpixel_labels = connected_components(distances < 0.02, directed=False)
-
-    labelled_image = np.ones(np.shape(original)[0:2], dtype=int) * -1
-    for index, label in enumerate(superpixel_labels):
-        labelled_image[pixel_indices[index]] = label
+    labelled_image = connected_within_threshold(pixel_indices, np.shape(original), distances, delta=0.01)
 
     avg_image = np.zeros_like(original)
-    for label in range(n):
+    # iterate over the nonnegative labels
+    for label in range(np.count_nonzero(np.unique(labelled_image) >= 0)):
         avg_image[labelled_image == label] = np.mean(original[labelled_image == label], axis=0).astype(int)
 
     Image.fromarray(avg_image).show()
@@ -51,13 +47,17 @@ def main():
     print(distances)
 
 
-def connected_within_threshold(weighed: np.ndarray, delta: float = 0.01):
-    """Calculate the sets of connected components of a weighed undirected graph whose weights are within a threshold delta."""
+def connected_within_threshold(superpixel_pixels: list, image_shape: tuple, distances: np.ndarray, delta: float = 0.01):
+    """Given a mapping from superpixel index to corresponding pixel locations, calculate the sets of connected components of a weighed undirected graph of superpixels "distances" whose weights are within a threshold delta and return a labelled image with the given shape."""
     from scipy.sparse.csgraph import connected_components
     # labels maps index of node to a label for the group
-    n, labels = connected_components(weighed < delta, directed=False)
-    # need the first element of np.nonzero since it wraps itself in a tuple
-    return [np.nonzero(labels == label)[0] for label in range(n)]
+    n, superpixel_labels = connected_components(distances < delta, directed=False)
+    # create labelled image; initialize to -1 to ignore outside superpixels
+    labelled = -1 * np.ones(image_shape[0:2], dtype=int)
+    # set labels for each pixel for each superpixel
+    for index, label in enumerate(superpixel_labels):
+        labelled[superpixel_pixels[index]] = label
+    return labelled
 
 
 
