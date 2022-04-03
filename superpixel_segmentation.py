@@ -1,6 +1,8 @@
 from __future__ import annotations
 from typing import Callable
 
+from argparse import ArgumentParser
+
 from skimage.segmentation import slic
 from PIL import Image
 
@@ -8,6 +10,22 @@ import numpy as np
 
 
 def main():
+    parser = ArgumentParser(description="Iteratively merge superpixels of an image based on similarity and constraint locations.")
+    parser.add_argument("image", help="Image file; fully transparent pixels are ignored to allow for operation on segments")
+    parser.add_argument("-c", "--constraint", type=int, required=True, action="append", nargs=2, 
+        # add proper labels to help text
+        metavar=("x", "y"),
+        # store into args.constraints
+        dest="constraints",
+        help="Locations of failed pixel constraints; add more by repeating this flag")
+
+    args = parser.parse_args()
+
+    exit()
+
+    # TODO what if I keep all of this "opaque" stuff in terms of a labelled image?
+    # TODO look into using masked arrays for the labels array
+
     # given original, which is a segment, possibly with opacity;
     # transparent if within bounding box but outside segment
     original = np.array(Image.open("./output/segment-1.png"))
@@ -37,7 +55,7 @@ def main():
 
 
 def connected_within_threshold(superpixel_pixels: list, image_shape: tuple, distances: np.ndarray, delta: float = 0.01):
-    """Given a mapping from superpixel index to corresponding pixel locations, calculate the sets of connected components of a weighed undirected graph of superpixels "distances" whose weights are within a threshold delta and return a labelled image with the given shape."""
+    """Given a mapping from superpixel index to corresponding pixel locations, calculate the sets of connected components of a weighed undirected graph of superpixels "distances" whose weights are within a threshold delta, and return a labelled image with the given shape."""
     from scipy.sparse.csgraph import connected_components
     # labels maps index of node to a label for the group
     n, superpixel_labels = connected_components(distances < delta, directed=False)
