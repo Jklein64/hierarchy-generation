@@ -31,12 +31,7 @@ def main():
     # merge connected regions
     labelled_image = connected_within_threshold(pixel_indices, np.shape(original), distances, delta=0.01)
 
-    avg_image = np.zeros_like(original)
-    # iterate over the nonnegative labels
-    for label in range(np.count_nonzero(np.unique(labelled_image) >= 0)):
-        avg_image[labelled_image == label] = np.mean(original[labelled_image == label], axis=0).astype(int)
-
-    Image.fromarray(avg_image).show()
+    Image.fromarray(visualize_regions(original, labelled_image)).show()
 
     print(distances)
 
@@ -102,6 +97,19 @@ def color_histograms(pixels: np.ndarray) -> list[np.ndarray]:
         histograms.append(histogram)
     return histograms
 
+
+def visualize_regions(original: np.ndarray, labelled: np.ndarray):
+    """Visualize the label-defined regions of an 8-bit RGB(A) image by setting a regions color to the average color of pixels in the region."""
+    visual = np.zeros_like(original)
+    # get non-negative labels
+    labels = np.unique(labelled)[np.unique(labelled) >= 0]
+    # set each region to the average color
+    for label in labels:
+        region = labelled == label
+        # axis=0 averages rgb(a) channels separately
+        average = np.mean(original[region], axis=0).astype(int)
+        visual[region] = average
+    return visual
 
 
 if __name__ == "__main__":
