@@ -1,4 +1,6 @@
 from __future__ import annotations
+from typing import Callable
+
 from skimage.segmentation import slic
 from PIL import Image
 
@@ -26,13 +28,7 @@ def main():
     pixel_indices = [np.where(labels == label) for label in opaque]
 
     # create (initially) lower-triangular distances matrix
-    distances = np.zeros((len(superpixels), len(superpixels)))
-    # we are interested in values below the diagonal but not including it, so k = -1
-    # the diagonal would measure the distance from each superpixel to itself
-    for i, j in np.column_stack(np.tril_indices(len(superpixels), k=-1)):
-        distances[i, j] = wasserstein_image_distance(superpixels[i], superpixels[j])
-    # make distances an actual adjacency matrix
-    distances = distances + np.transpose(distances)
+    distances = distances_matrix(superpixels, metric=wasserstein_image_distance)
 
     # merge connected regions
     labelled_image = connected_within_threshold(pixel_indices, np.shape(original), distances, delta=0.01)
@@ -59,6 +55,15 @@ def connected_within_threshold(superpixel_pixels: list, image_shape: tuple, dist
         labelled[superpixel_pixels[index]] = label
     return labelled
 
+def distances_matrix(superpixels: list[np.ndarray], metric: Callable[[np.ndarray, np.ndarray], float]) -> np.ndarray:
+    """Create a matrix which contains the metric-based distances between every pair of the given superpixels."""
+    # create n-by-n matrix to compare distances between n superpixels
+    distances = np.zeros((len(superpixels), len(superpixels)))
+    # distance is symmetric, so only compare each pair once (below diagonal)
+    for i, j in np.transpose(np.tril_indices(len(superpixels), k=-1)):
+        distances[i, j] = metric(superpixels[i], superpixels[j])
+    # fill in the rest of the distances matrix
+    return distances + np.transpose(distances)
 
 
 def wasserstein_image_distance(pixels_1: np.ndarray, pixels_2: np.ndarray) -> float:
