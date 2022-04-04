@@ -21,59 +21,54 @@ def main():
 
     args = parser.parse_args()
 
-    exit()
+    # TODO visualize constraints on the image
+    # TODO how to show constraint order????
+    # 65 mins using masked arrays!
 
-    # TODO what if I keep all of this "opaque" stuff in terms of a labelled image?
-    # TODO look into using masked arrays for the labels array
-
-    # given original, which is a segment, possibly with opacity;
+    # original is an 8-bit rgb(a) image, possibly with opacity;
     # transparent if within bounding box but outside segment
-    original = np.array(Image.open("./output/segment-1.png"))
-    # labels is an array which maps each pixel location to a segment label
-    labels = slic(original[..., 0:3] / 255, 200, start_label=0, multichannel=True)
-    # mask labels by setting label of pixels outside segment to -1
-    labels = np.where(original[..., -1] == 0 if np.shape(original)[-1] == 4 else False, -1, labels)
+    original = np.array(Image.open(args.image))
 
-    # superpixels is an array of pixels for each label; iterate over range to exclude -1
-    superpixels = [original[labels == label] for label in range(len(labels))]
-    # find superpixel indices for superpixels which aren't empty lists due to the mask
-    opaque = [label for (label, pixel) in enumerate(superpixels) if len(pixel) > 0]
-    # remove superpixels which are empty lists due to the mask
-    superpixels = [superpixels[label] for label in opaque]
-    # create the list of pixel locations corresponding to each superpixel
-    pixel_indices = [np.where(labels == label) for label in opaque]
-
-    # create (initially) lower-triangular distances matrix
-    distances = distances_matrix(superpixels, metric=wasserstein_image_distance)
-
+    labels = np.ma.array(
+        # labels maps pixel location to a superpixel label
+        slic(original[..., 0:3] / 255, 200, start_label=0),
+        # don't mask anything if no alpha channel, otherwise mask transparent pixels
+        mask=np.shape(original)[-1] == 4 and original[..., -1] == 0)
+    # create distances matrix
+    distances = distances_matrix(original, labels, metric=wasserstein_image_distance)
     # merge connected regions
-    labelled_image = connected_within_threshold(pixel_indices, np.shape(original), distances, delta=0.01)
+    labelled_image = connected_within_threshold(labels, distances, delta=0.01)
 
     Image.fromarray(visualize_regions(original, labelled_image)).show()
 
     print(distances)
 
 
-def connected_within_threshold(superpixel_pixels: list, image_shape: tuple, distances: np.ndarray, delta: float = 0.01):
-    """Given a mapping from superpixel index to corresponding pixel locations, calculate the sets of connected components of a weighed undirected graph of superpixels "distances" whose weights are within a threshold delta, and return a labelled image with the given shape."""
+def connected_within_threshold(superpixels: np.ndarray, distances: np.ndarray, delta: float = 0.01):
+    """Given a mapping from pixel location to superpixel label as well as a weighted adjacency matrix, calculate the sets of connected components of a weighed undirected graph of superpixels "distances" whose weights are within a threshold delta, and return a newly labelled image."""
     from scipy.sparse.csgraph import connected_components
     # labels maps index of node to a label for the group
     n, superpixel_labels = connected_components(distances < delta, directed=False)
-    # create labelled image; initialize to -1 to ignore outside superpixels
-    labelled = -1 * np.ones(image_shape[0:2], dtype=int)
+    # create labelled image; keep superpixels' mask
+    # note that zeros_like() doesn't exist for np.ma
+    labels = np.ma.copy(superpixels)
     # set labels for each pixel for each superpixel
     for index, label in enumerate(superpixel_labels):
-        labelled[superpixel_pixels[index]] = label
-    return labelled
+        labels[superpixels == index] = label
+    return labels
 
 
-def distances_matrix(superpixels: list[np.ndarray], metric: Callable[[np.ndarray, np.ndarray], float]) -> np.ndarray:
-    """Create a matrix which contains the metric-based distances between every pair of the given superpixels."""
+def distances_matrix(original: np.ndarray, superpixels: np.ndarray, metric: Callable[[np.ndarray, np.ndarray], float]) -> np.ndarray:
+    """Create a matrix with the metric-based distances between every pair of the given superpixels implied by the original and labelled images."""
+    # store list of valid superpixel labels
+    unique_labels = np.ma.compressed(np.ma.unique(superpixels))
+    # pixels is a list of pixel values for the n'th superpixel
+    pixels = [original[superpixels == label] for label in unique_labels]
     # create n-by-n matrix to compare distances between n superpixels
-    distances = np.zeros((len(superpixels), len(superpixels)))
+    distances = np.zeros((len(unique_labels), len(unique_labels)))
     # distance is symmetric, so only compare each pair once (below diagonal)
-    for i, j in np.transpose(np.tril_indices(len(superpixels), k=-1)):
-        distances[i, j] = metric(superpixels[i], superpixels[j])
+    for i, j in np.transpose(np.tril_indices(len(unique_labels), k=-1)):
+        distances[i, j] = metric(pixels[i], pixels[j])
     # fill in the rest of the distances matrix
     return distances + np.transpose(distances)
 
@@ -116,14 +111,12 @@ def color_histograms(pixels: np.ndarray) -> list[np.ndarray]:
     return histograms
 
 
-def visualize_regions(original: np.ndarray, labelled: np.ndarray):
+def visualize_regions(original: np.ndarray, labels: np.ndarray):
     """Visualize the label-defined regions of an 8-bit RGB(A) image by setting a regions color to the average color of pixels in the region."""
     visual = np.zeros_like(original)
-    # get non-negative labels
-    labels = np.unique(labelled)[np.unique(labelled) >= 0]
-    # set each region to the average color
-    for label in labels:
-        region = labelled == label
+    # set each non-masked region to the average color
+    for label in np.ma.compressed(np.ma.unique(labels)):
+        region = labels == label
         # axis=0 averages rgb(a) channels separately
         average = np.mean(original[region], axis=0).astype(int)
         visual[region] = average
