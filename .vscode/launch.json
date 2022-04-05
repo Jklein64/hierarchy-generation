@@ -11,10 +11,13 @@
             "program": "${file}",
             "console": "internalConsole",
             "args": [
-                "./output/segment-1.png", 
+                "image.png", 
                 "-c",
-                "0",
-                "0"
+                "100",
+                "100",
+                "-c",
+                "250",
+                "500"
                 // "./SenFormer/senformer_configs/senformer/coco-stuff10k/senformer_fpnt_swin_large_512x512_80k_coco.py",
                 // "./senformer_swin_large_512x512_coco.pth",
             ]

@@ -30,6 +30,10 @@ def main():
     # transparent if within bounding box but outside segment
     original = np.array(Image.open(args.image))
 
+    Image.fromarray(visualize_constraints(original, args.constraints)).show()
+
+    exit()
+
     labels = np.ma.array(
         # labels maps pixel location to a superpixel label
         slic(original[..., 0:3] / 255, 200, start_label=0),
@@ -118,6 +122,64 @@ def visualize_regions(original: np.ndarray, labels: np.ndarray):
         # axis=0 averages rgb(a) channels separately
         average = np.mean(original[region], axis=0).astype(int)
         visual[region] = average
+    return visual
+
+
+def visualize_constraints(original: np.ndarray, constraints: list[int, int], length=15, thickness=2):
+    from itertools import cycle
+    from scipy import ndimage
+    # don't overwrite the image
+    visual = np.copy(original)
+    # cross is two diagonal lines looking like an "x" 
+    line = np.eye(length, dtype=bool)
+    cross = line | np.flipud(line)
+    for number, (x, y) in enumerate(constraints):
+        height, width = np.shape(visual)[0:2]
+        # create array like visual but with cross
+        pattern = np.zeros((height, width), dtype=bool)
+        # create initial slices; x, y is flipped from row, column
+        h_slice = slice(y - length // 2, y + length // 2 + length % 2)
+        v_slice = slice(x - length // 2, x + length // 2 + length % 2)
+        # handle out of bounds
+        cross_start_h = 0
+        cross_start_v = 0
+        cross_stop_h = length
+        cross_stop_v = length
+        # out of bounds on left
+        if h_slice.start < 0:
+            cross_start_h = -h_slice.start
+            cross_stop_h = length
+        # out of bounds on right
+        if h_slice.stop > width:
+            cross_start_h = 0
+            cross_stop_h = length // 2
+        # out of bounds on top
+        if v_slice.start < 0:
+            cross_start_v = -v_slice.start
+            cross_stop_v = length
+        # out of bounds on bottom
+        if v_slice.stop > height:
+            cross_start_v = 0
+            cross_stop_v = length // 2
+        h_slice = slice(max(0, h_slice.start), min(h_slice.stop, width))
+        v_slice = slice(max(0, v_slice.start), min(v_slice.stop, height))
+        h_cross_slice = slice(cross_start_h, cross_stop_h)
+        v_cross_slice = slice(cross_start_v, cross_stop_v)
+        pattern[h_slice, v_slice] = cross[h_cross_slice, v_cross_slice]
+        # derive number of layers
+        layers = number + 3
+        # cycle between black and white
+        color = cycle(
+            # always have white on the inside
+            (reversed if layers % 2 == 1 else list)
+            ([*[255] * thickness, *[0] * thickness]))
+        # reversed to avoid overwriting smaller regions
+        for i in reversed(range(thickness - 1, layers * thickness - 1)):
+            # i + 1 iterations since zero behaves differently
+            visual[ndimage.binary_dilation(pattern, iterations=i + 1)] = next(color)
+        # fill inside with original
+        inside_pattern = ndimage.binary_dilation(pattern, iterations=thickness - 1)
+        visual[inside_pattern] = original[inside_pattern]
     return visual
 
 
