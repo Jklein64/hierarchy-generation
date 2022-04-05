@@ -125,54 +125,52 @@ def visualize_regions(original: np.ndarray, labels: np.ndarray):
     return visual
 
 
-def visualize_constraints(original: np.ndarray, constraints: list[int, int], length=15, thickness=2):
+def visualize_constraints(original: np.ndarray, constraints: list[int, int], length=25, thickness=3):
     from itertools import cycle
     from scipy import ndimage
     # don't overwrite the image
     visual = np.copy(original)
-    # cross is two diagonal lines looking like an "x" 
-    line = np.eye(length, dtype=bool)
-    cross = line | np.flipud(line)
+    height, width = np.shape(visual)[0:2]
+    # create circular mask with diameter length
+    y, x = np.ogrid[0:width, 0:height]
+    gradient = (x - length // 2)**2 + (y - length // 2)**2
+    circle =  gradient < (length // 2) ** 2
     for number, (x, y) in enumerate(constraints):
-        height, width = np.shape(visual)[0:2]
         # create array like visual but with cross
         pattern = np.zeros((height, width), dtype=bool)
         # create initial slices; x, y is flipped from row, column
         h_slice = slice(y - length // 2, y + length // 2 + length % 2)
         v_slice = slice(x - length // 2, x + length // 2 + length % 2)
         # handle out of bounds
-        cross_start_h = 0
-        cross_start_v = 0
-        cross_stop_h = length
-        cross_stop_v = length
+        circle_start_h = 0
+        circle_start_v = 0
+        circle_stop_h = length
+        circle_stop_v = length
         # out of bounds on left
         if h_slice.start < 0:
-            cross_start_h = -h_slice.start
-            cross_stop_h = length
+            circle_start_h = -h_slice.start
+            circle_stop_h = length
         # out of bounds on right
         if h_slice.stop > width:
-            cross_start_h = 0
-            cross_stop_h = length // 2
+            circle_start_h = 0
+            circle_stop_h = length // 2
         # out of bounds on top
         if v_slice.start < 0:
-            cross_start_v = -v_slice.start
-            cross_stop_v = length
+            circle_start_v = -v_slice.start
+            circle_stop_v = length
         # out of bounds on bottom
         if v_slice.stop > height:
-            cross_start_v = 0
-            cross_stop_v = length // 2
+            circle_start_v = 0
+            circle_stop_v = length // 2
         h_slice = slice(max(0, h_slice.start), min(h_slice.stop, width))
         v_slice = slice(max(0, v_slice.start), min(v_slice.stop, height))
-        h_cross_slice = slice(cross_start_h, cross_stop_h)
-        v_cross_slice = slice(cross_start_v, cross_stop_v)
-        pattern[h_slice, v_slice] = cross[h_cross_slice, v_cross_slice]
-        # derive number of layers
-        layers = number + 3
-        # cycle between black and white
-        color = cycle(
-            # always have white on the inside
-            (reversed if layers % 2 == 1 else list)
-            ([*[255] * thickness, *[0] * thickness]))
+        h_circle_slice = slice(circle_start_h, circle_stop_h)
+        v_circle_slice = slice(circle_start_v, circle_stop_v)
+        pattern[h_slice, v_slice] = circle[h_circle_slice, v_circle_slice]
+        # two layers per number increment
+        layers = number * 2 + 3
+        # cycle between black and white; white on the outside
+        color = cycle([*[255] * thickness, *[0] * thickness])
         # reversed to avoid overwriting smaller regions
         for i in reversed(range(thickness - 1, layers * thickness - 1)):
             # i + 1 iterations since zero behaves differently
