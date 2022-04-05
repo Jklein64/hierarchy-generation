@@ -3,10 +3,11 @@ from typing import Callable
 
 from argparse import ArgumentParser
 
+from scipy.sparse.csgraph import connected_components
 from skimage.segmentation import slic
 from PIL import Image
 
-import numpy as np
+import ot, numpy as np
 
 
 def main():
@@ -34,9 +35,8 @@ def main():
         slic(original[..., 0:3] / 255, 200, start_label=0),
         # don't mask anything if no alpha channel, otherwise mask transparent pixels
         mask=np.shape(original)[-1] == 4 and original[..., -1] == 0)
-    # create distances matrix
+
     distances = distances_matrix(original, labels, metric=wasserstein_image_distance)
-    # merge connected regions
     labelled_image = connected_within_threshold(labels, distances, delta=0.01)
 
     Image.fromarray(visualize_regions(original, labelled_image)).show()
@@ -46,7 +46,6 @@ def main():
 
 def connected_within_threshold(superpixels: np.ndarray, distances: np.ndarray, delta: float = 0.01):
     """Given a mapping from pixel location to superpixel label as well as a weighted adjacency matrix, calculate the sets of connected components of a weighed undirected graph of superpixels "distances" whose weights are within a threshold delta, and return a newly labelled image."""
-    from scipy.sparse.csgraph import connected_components
     # labels maps index of node to a label for the group
     n, superpixel_labels = connected_components(distances < delta, directed=False)
     # create labelled image; keep superpixels' mask
@@ -75,7 +74,6 @@ def distances_matrix(original: np.ndarray, superpixels: np.ndarray, metric: Call
 
 def wasserstein_image_distance(pixels_1: np.ndarray, pixels_2: np.ndarray) -> float:
     """Compute the Wasserstein or Earth Mover's distance between the given sets of integer-valued 8-bit pixels."""
-    import ot
     # compute and normalize (by pixel count) color histograms for each channel
     red_1, green_1, blue_1 = map(lambda h: h / len(pixels_1), color_histograms(pixels_1))
     red_2, green_2, blue_2 = map(lambda h: h / len(pixels_2), color_histograms(pixels_2))
