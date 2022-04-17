@@ -69,3 +69,12 @@ def show_constraints(original: np.ndarray, constraints: list[int, int], length=2
         inside_pattern = ndimage.binary_dilation(pattern, iterations=thickness - 1)
         visual[inside_pattern] = original[inside_pattern][...,0:3]
     return visual
+
+
+def show(image: np.ndarray, *, regions=None, constraints=None) -> None:
+    result = image
+    if regions is not None:
+        result = show_regions(result, regions)
+    if constraints is not None:
+        result = show_constraints(result, constraints)
+    Image.fromarray(result).show()
