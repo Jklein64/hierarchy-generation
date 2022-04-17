@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from PIL import Image
+
 import numpy as np
 
 def show_regions(original: np.ndarray, labels: np.ndarray):
@@ -16,10 +18,10 @@ def show_regions(original: np.ndarray, labels: np.ndarray):
 
 def show_constraints(original: np.ndarray, constraints: list[int, int], length=25, thickness=3):
     # TODO show on transparent images
-    from itertools import cycle
+    from itertools import cycle, chain, repeat
     from scipy import ndimage
     # don't overwrite the image
-    visual = np.copy(original)[...,0:3]
+    visual = np.copy(original)
     height, width = np.shape(visual)[0:2]
     # create circular mask with diameter length
     y, x = np.ogrid[0:width, 0:height]
@@ -59,15 +61,19 @@ def show_constraints(original: np.ndarray, constraints: list[int, int], length=2
         pattern[h_slice, v_slice] = circle[h_circle_slice, v_circle_slice]
         # two layers per number increment
         layers = number * 2 + 3
-        # cycle between black and white; white on the outside
-        color = cycle([*[255] * thickness, *[0] * thickness])
+        # cycle between black and white
+        color = chain(
+            # four values to avoid broadcasting
+            repeat([255, 255, 255, 255], thickness), 
+            # and to include alpha value for black
+            repeat([0, 0, 0, 255], thickness))
         # reversed to avoid overwriting smaller regions
         for i in reversed(range(thickness - 1, layers * thickness - 1)):
             # i + 1 iterations since zero behaves differently
             visual[ndimage.binary_dilation(pattern, iterations=i + 1)] = next(color)
         # fill inside with original
         inside_pattern = ndimage.binary_dilation(pattern, iterations=thickness - 1)
-        visual[inside_pattern] = original[inside_pattern][...,0:3]
+        visual[inside_pattern] = original[inside_pattern]
     return visual
 
 

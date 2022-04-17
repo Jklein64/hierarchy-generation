@@ -10,7 +10,7 @@ from PIL import Image
 import numpy as np
 
 from metrics import wasserstein_image_distance
-from visualization import show_constraints, show_regions
+from visualization import show
 
 
 def main():
@@ -38,7 +38,7 @@ def main():
     distances = distances_matrix(original, labels, metric=wasserstein_image_distance)
     labelled_image = connected_within_threshold(labels, distances, delta=0.02)
 
-    Image.fromarray(show_regions(original, labelled_image)).show()
+    show(original, regions=labelled_image)
 
     print(distances)
 
