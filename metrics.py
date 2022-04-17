@@ -4,6 +4,15 @@ import numpy as np
 import ot
 
 
+def average_color_distance(pixels_1: np.ndarray, pixels_2: np.ndarray) -> float:
+    """Compute the squared distance between the average colors of the given sets of pixels."""
+    # cast to float to avoid integer truncation
+    average_1 = np.mean(pixels_1, axis=0)
+    average_2 = np.mean(pixels_2, axis=0)
+    # return sum of squared difference
+    return sum(np.square(average_1 - average_2))
+
+
 def wasserstein_image_distance(pixels_1: np.ndarray, pixels_2: np.ndarray) -> float:
     """Compute the Wasserstein or Earth Mover's distance between the given sets of integer-valued 8-bit pixels."""
     # compute and normalize (by pixel count) color histograms for each channel
