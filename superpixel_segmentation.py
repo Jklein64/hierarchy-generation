@@ -45,14 +45,16 @@ def main():
 
 def connected_within_threshold(superpixels: np.ndarray, distances: np.ndarray, delta: float = 0.01):
     """Given a mapping from pixel location to superpixel label as well as a weighted adjacency matrix, calculate the sets of connected components of a weighed undirected graph of superpixels "distances" whose weights are within a threshold delta, and return a newly labelled image."""
-    # labels maps index of node to a label for the group
-    n, superpixel_labels = connected_components(distances < delta, directed=False)
-    # create labelled image; keep superpixels' mask
-    # note that zeros_like() doesn't exist for np.ma
-    labels = np.ma.copy(superpixels)
+    # merged_labels maps index of node to a label for each newly merged group
+    n, merged_labels = connected_components(distances < delta, directed=False)
+    # superpixel_labels gives the label for the n'th superpixel
+    superpixel_labels = np.unique(np.ma.compressed(superpixels))
+    # create labelled image shaped like superpixels but masking everything
+    labels = np.ma.array(np.zeros_like(superpixels), mask=True)
     # set labels for each pixel for each superpixel
-    for index, label in enumerate(superpixel_labels):
-        labels[superpixels == index] = label
+    for index, label in enumerate(merged_labels):
+        labels[superpixels == superpixel_labels[index]] = label
+    # np.unique(labels) should be np.unique(superpixel_labels), but it isn't
     return labels
 
 
