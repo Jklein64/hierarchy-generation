@@ -49,7 +49,7 @@ def main():
     a, b = merged[tuple(np.transpose(constraints))]
     # binary search until they're close enough;
     # must end with constraints separated
-    while a == b and (high - low) > threshold:
+    while a == b or (high - low) > threshold:
         if a == b:
             # too general
             high = delta
