@@ -62,11 +62,11 @@ def show_constraints(original: np.ndarray, constraints: list[int, int], length=2
         # two layers per number increment
         layers = number * 2 + 3
         # cycle between black and white
-        color = chain(
+        color = cycle(chain(
             # four values to avoid broadcasting
             repeat([255, 255, 255, 255], thickness), 
             # and to include alpha value for black
-            repeat([0, 0, 0, 255], thickness))
+            repeat([0, 0, 0, 255], thickness)))
         # reversed to avoid overwriting smaller regions
         for i in reversed(range(thickness - 1, layers * thickness - 1)):
             # i + 1 iterations since zero behaves differently
