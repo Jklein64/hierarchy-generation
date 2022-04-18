@@ -60,9 +60,14 @@ def main():
         delta = (high + low) / 2
         merged = connected_within_threshold(labels, distances, delta)
         a, b = merged[tuple(np.transpose(constraints))]
+    # assign regions not containing either 
+    # constraint to the older constraint
+    for label in np.unique(merged[~np.ma.getmask(merged)]):
+        # TODO shouldn't `a` and `b` be flipped?
+        merged[merged == label] = a if label == a else b
 
-    show(original, regions=labels, constraints=args.constraints)
-    show(original, regions=merged, constraints=args.constraints)
+    show(original, regions=labels, constraints=constraints)
+    show(original, regions=merged, constraints=constraints)
 
     pass
 
