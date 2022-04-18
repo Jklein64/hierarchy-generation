@@ -83,7 +83,6 @@ def connected_within_threshold(superpixels: np.ndarray, distances: np.ndarray, d
     # set labels for each pixel for each superpixel
     for index, label in enumerate(merged_labels):
         labels[superpixels == superpixel_labels[index]] = label
-    # np.unique(labels) should be np.unique(superpixel_labels), but it isn't
     return labels
 
 
