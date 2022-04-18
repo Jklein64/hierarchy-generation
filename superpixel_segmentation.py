@@ -9,7 +9,7 @@ from PIL import Image
 
 import numpy as np
 
-from metrics import wasserstein_image_distance
+from metrics import wasserstein_image_distance, average_color_distance
 from visualization import show
 
 
@@ -25,6 +25,8 @@ def main():
 
     args = parser.parse_args()
 
+    # turn array into tuple to allow for indexing
+    constraints = list(map(tuple, args.constraints))
     # original is an 8-bit rgb(a) image, possibly with opacity;
     # transparent if within bounding box but outside segment
     original = np.array(Image.open(args.image))
@@ -36,11 +38,33 @@ def main():
         mask=np.shape(original)[-1] == 4 and original[..., -1] == 0)
 
     distances = distances_matrix(original, labels, metric=wasserstein_image_distance)
-    labelled_image = connected_within_threshold(labels, distances, delta=0.02)
 
-    show(original, regions=labelled_image)
+    low = 0
+    high = np.max(distances)
+    delta = (high + low) / 2
+    threshold = high * 0.001
+    # create initial merged image
+    merged = connected_within_threshold(labels, distances, delta)
+    # find which superpixel each constraints belongs to
+    a, b = merged[tuple(np.transpose(constraints))]
+    # binary search until they're close enough;
+    # must end with constraints separated
+    while a == b and (high - low) > threshold:
+        if a == b:
+            # too general
+            high = delta
+        else:
+            # specific enough
+            low = delta
+        # reset loop variables
+        delta = (high + low) / 2
+        merged = connected_within_threshold(labels, distances, delta)
+        a, b = merged[tuple(np.transpose(constraints))]
 
-    print(distances)
+    show(original, regions=labels, constraints=args.constraints)
+    show(original, regions=merged, constraints=args.constraints)
+
+    pass
 
 
 def connected_within_threshold(superpixels: np.ndarray, distances: np.ndarray, delta: float = 0.01):
