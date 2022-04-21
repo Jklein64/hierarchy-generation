@@ -17,7 +17,7 @@ def show_regions(original: np.ndarray, labels: np.ndarray):
 
 
 def show_constraints(original: np.ndarray, constraints: list[int, int], length=25, thickness=3):
-    """Visualize the constraints on the image using black and white circles where each consecutive constraint has an additional layer of black and white.  This function requires constraints to be given as (x, y) coordinates of the image, not (row, column)!"""
+    """Visualize the constraints on the image using black and white circles where each consecutive constraint has an additional layer of black and white.  This function requires constraints to be given as (row, column) coordinates of the image!"""
     from itertools import cycle, chain, repeat
     from scipy import ndimage
     # don't overwrite the image
@@ -27,12 +27,12 @@ def show_constraints(original: np.ndarray, constraints: list[int, int], length=2
     y, x = np.ogrid[0:width, 0:height]
     gradient = (x - length // 2)**2 + (y - length // 2)**2
     circle =  gradient < (length // 2) ** 2
-    for number, (x, y) in enumerate(constraints):
+    for number, (row, col) in enumerate(constraints):
         # create array like visual but with cross
         pattern = np.zeros((height, width), dtype=bool)
-        # create initial slices; x, y is flipped from row, column
-        h_slice = slice(y - length // 2, y + length // 2 + length % 2)
-        v_slice = slice(x - length // 2, x + length // 2 + length % 2)
+        # create initial slices
+        h_slice = slice(col - length // 2, col + length // 2 + length % 2)
+        v_slice = slice(row - length // 2, row + length // 2 + length % 2)
         # handle out of bounds
         circle_start_h = 0
         circle_start_v = 0
@@ -58,15 +58,18 @@ def show_constraints(original: np.ndarray, constraints: list[int, int], length=2
         v_slice = slice(max(0, v_slice.start), min(v_slice.stop, height))
         h_circle_slice = slice(circle_start_h, circle_stop_h)
         v_circle_slice = slice(circle_start_v, circle_stop_v)
-        pattern[h_slice, v_slice] = circle[h_circle_slice, v_circle_slice]
+        pattern[v_slice, h_slice] = circle[v_circle_slice, h_circle_slice]
+        # pattern[h_slice, v_slice] = circle[h_circle_slice, v_circle_slice]
         # two layers per number increment
         layers = number * 2 + 3
+        # only include alpha channel it exists
+        has_alpha = np.shape(visual)[-1] == 4
         # cycle between black and white
         color = cycle(chain(
             # four values to avoid broadcasting
-            repeat([255, 255, 255, 255], thickness), 
+            repeat([255, 255, 255, 255] if has_alpha else [255], thickness), 
             # and to include alpha value for black
-            repeat([0, 0, 0, 255], thickness)))
+            repeat([0, 0, 0, 255] if has_alpha else [0], thickness)))
         # reversed to avoid overwriting smaller regions
         for i in reversed(range(thickness - 1, layers * thickness - 1)):
             # i + 1 iterations since zero behaves differently

@@ -18,7 +18,7 @@ def main():
     parser.add_argument("image", help="Image file; fully transparent pixels are ignored to allow for operation on segments")
     parser.add_argument("-c", "--constraint", type=int, required=True, action="append", nargs=2, 
         # add proper labels to help text
-        metavar=("x", "y"),
+        metavar=("row", "column"),
         # store into args.constraints
         dest="constraints",
         help="Locations of failed pixel constraints; add more by repeating this flag")
@@ -26,7 +26,7 @@ def main():
     args = parser.parse_args()
 
     # turn (x, y) array into (row, col) tuple to allow for indexing
-    constraints = list(map(tuple, map(reversed, args.constraints)))
+    constraints = args.constraints # list(map(tuple, map(reversed, args.constraints)))
     # original is an 8-bit rgb(a) image, possibly with opacity;
     # transparent if within bounding box but outside segment
     original = np.array(Image.open(args.image))
@@ -60,6 +60,8 @@ def main():
         delta = (high + low) / 2
         merged = connected_within_threshold(labels, distances, delta)
         a, b  = merged[tuple(np.transpose(constraints))]
+
+    show(original, regions=merged, constraints=args.constraints)
     # assign regions not containing either 
     # constraint to the older constraint
     for label in np.unique(merged[~np.ma.getmask(merged)]):

@@ -11,13 +11,13 @@
             "program": "${file}",
             "console": "internalConsole",
             "args": [
-                "output/segment-1.png",
+                "coffee.jpeg",
                 "-c",
-                "450",
+                "100",
+                "400",
+                "-c",
+                "100",
                 "200",
-                "-c",
-                "250",
-                "500"
             ]
         }
     ]
