@@ -17,7 +17,7 @@ def show_regions(original: np.ndarray, labels: np.ndarray):
 
 
 def show_constraints(original: np.ndarray, constraints: list[int, int], length=25, thickness=3):
-    # TODO show on transparent images
+    """Visualize the constraints on the image using black and white circles where each consecutive constraint has an additional layer of black and white.  This function requires constraints to be given as (x, y) coordinates of the image, not (row, column)!"""
     from itertools import cycle, chain, repeat
     from scipy import ndimage
     # don't overwrite the image

@@ -25,8 +25,8 @@ def main():
 
     args = parser.parse_args()
 
-    # turn array into tuple to allow for indexing
-    constraints = list(map(tuple, args.constraints))
+    # turn (x, y) array into (row, col) tuple to allow for indexing
+    constraints = list(map(tuple, map(reversed, args.constraints)))
     # original is an 8-bit rgb(a) image, possibly with opacity;
     # transparent if within bounding box but outside segment
     original = np.array(Image.open(args.image))
@@ -59,15 +59,15 @@ def main():
         # reset loop variables
         delta = (high + low) / 2
         merged = connected_within_threshold(labels, distances, delta)
-        a, b = merged[tuple(np.transpose(constraints))]
+        a, b  = merged[tuple(np.transpose(constraints))]
     # assign regions not containing either 
     # constraint to the older constraint
     for label in np.unique(merged[~np.ma.getmask(merged)]):
-        # TODO shouldn't `a` and `b` be flipped?
-        merged[merged == label] = a if label == a else b
+        # merge all but the region containing the most recent constraint
+        merged[merged == label] = b if label == b else a
 
-    show(original, regions=labels, constraints=constraints)
-    show(original, regions=merged, constraints=constraints)
+    show(original, regions=labels, constraints=args.constraints)
+    show(original, regions=merged, constraints=args.constraints)
 
     pass
 
