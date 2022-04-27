@@ -31,11 +31,17 @@ def main():
     # transparent if within bounding box but outside segment
     original = np.array(Image.open(args.image))
 
+    # show the original image
+    show(original, constraints=constraints)
+
     labels = np.ma.array(
         # labels maps pixel location to a superpixel label
         slic(original[..., 0:3] / 255, 200, start_label=0),
         # don't mask anything if no alpha channel, otherwise mask transparent pixels
         mask=np.shape(original)[-1] == 4 and original[..., -1] == 0)
+
+    # show the initial superpixel segmentation
+    show(original, regions=labels, constraints=constraints)
 
     distances = distances_matrix(original, labels, metric=wasserstein_image_distance)
 
@@ -61,15 +67,14 @@ def main():
         merged = connected_within_threshold(labels, distances, delta)
         a, b  = merged[tuple(np.transpose(constraints))]
 
-    show(original, regions=merged, constraints=args.constraints)
+    show(original, regions=merged, constraints=constraints)
     # assign regions not containing either 
     # constraint to the older constraint
     for label in np.unique(merged[~np.ma.getmask(merged)]):
         # merge all but the region containing the most recent constraint
         merged[merged == label] = b if label == b else a
 
-    show(original, regions=labels, constraints=args.constraints)
-    show(original, regions=merged, constraints=args.constraints)
+    show(original, regions=merged, constraints=constraints)
 
     pass
 
