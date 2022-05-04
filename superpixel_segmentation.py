@@ -27,13 +27,14 @@ def main():
     args = parser.parse_args()
 
     # turn (x, y) array into (row, col) tuple to allow for indexing
-    constraints = args.constraints # list(map(tuple, map(reversed, args.constraints)))
+    # note that constraints is sorted with most recent as last
+    constraints = args.constraints
     # original is an 8-bit rgb(a) image, possibly with opacity;
     # transparent if within bounding box but outside segment
     original = np.array(Image.open(args.image))
 
     # show the original image
-    # show(original, constraints=constraints)
+    show(original, constraints=constraints)
 
     labels = np.ma.array(
         # labels maps pixel location to a superpixel label
@@ -41,13 +42,18 @@ def main():
         # don't mask anything if no alpha channel, otherwise mask transparent pixels
         mask=np.shape(original)[-1] == 4 and original[..., -1] == 0)
 
-    n = neighbor_matrix(original, labels, metric=wasserstein_image_distance)
-    print(superpixel_neighbors(labels, 2))
-
     # show the initial superpixel segmentation
     show(original, regions=labels, constraints=constraints)
 
-    distances = distances_matrix(original, labels, metric=wasserstein_image_distance)
+    neighbors = neighbor_matrix(original, labels, metric=wasserstein_image_distance)
+    # merge neighbors within threshold to reduce the total number of superpixels
+    # invert neighbors to represent distance instead of similarity; delta is arbitrary
+    merged_rag = connected_within_threshold(labels, 1 - neighbors, delta=0.01)
+
+    # show the image after merging the region adjacency graph
+    show(original, regions=merged_rag, constraints=constraints)
+
+    distances = distances_matrix(original, labels, metric=average_color_distance)
 
     low = 0
     high = np.max(distances)
@@ -71,13 +77,16 @@ def main():
         merged = connected_within_threshold(labels, distances, delta)
         a, b  = merged[tuple(np.transpose(constraints))]
 
+    # show the image after merging based on delta
     show(original, regions=merged, constraints=constraints)
+
     # assign regions not containing either 
     # constraint to the older constraint
     for label in np.unique(merged[~np.ma.getmask(merged)]):
         # merge all but the region containing the most recent constraint
         merged[merged == label] = b if label == b else a
 
+    # show the image after collapsing to two regions
     show(original, regions=merged, constraints=constraints)
 
     pass
