@@ -36,7 +36,15 @@ The images below illustrate the iterative merging of the superpixels for differe
 | :------------------------------: | :------------------------------: | :------------------------------: | :------------------------------: |
 |   most detailed; delta = 0.00    |   more detailed; delta = 0.01    |    more general; delta = 0.02    |    most general; delta = 0.05    |
 
-_currently, I am working on a revised implementation which takes constraint locations and uses them to find a desireable value for delta. I am also experimenting with variations on the distance metric to increase performance, as well as integration of [YOLO](https://github.com/ultralytics/yolov5) to identify superpixels corresponding to objects in the image that need to be kept together as a group and not merged with others._
+Finding an optimal value for delta without any additional context is actually and extremely difficult problem. Fortunately, I have additional context: constraints. The goal of segmentation with two constraints is to divide the original region into two sub-regions, each of which contain only one constraint. This means that I want to find the largest value of delta for which the constraints are still part of separate regions, which can be found with a simple binary search.
+
+The images below demonstrate the result of this delta optimization process. Here, the user might want to recolor the ground on the bottom while making no changes to the ground on the top of the image. While the segmentation was able to separate the two regions, it also grouped the baseball player's arm together with the ground, since the pixels shared enough colors.
+
+| ![](images/baseball-original.png) | ![](images/baseball-superpixels.png) | ![](images/baseball-unmerged.png) | ![](images/baseball-merged.png) |
+| :-------------------------------: | :----------------------------------: | :-------------------------------: | :-----------------------------: |
+|          original image           |             superpixels              |          optimized delta          |     merged to show regions      |
+
+_currently, I am experimenting with variations on the distance metric and possibly merging neighboring superpixels before computing pairwise distances across all of them to increase performance. I am also looking into integration of [YOLO](https://github.com/ultralytics/yolov5) or another semantic identification or segmentation algorithm to identify superpixels corresponding to objects in the image that need to be kept together as a group and not merged with others._
 
 # Setup
 
@@ -47,21 +55,8 @@ _currently, I am working on a revised implementation which takes constraint loca
   conda activate hierarchy-generation
   ```
 
-- Download the [MMSegmentation repository](https://github.com/open-mmlab/mmsegmentation), which we need for the model configs.
+- Run the python script. See the docstring for more info.
 
   ```bash
-  git clone git@github.com:open-mmlab/mmsegmentation.git
-  ```
-
-  Since this code makes inferences on the CPU, you will need to replace all instances of the string "SyncBN" in `configs/setr/setr_mla_512x512_160k_b8_ade20k.py` and `configs/_base_/models/setr_mla.py` with "BN" ([more info](https://github.com/open-mmlab/mmsegmentation/issues/292)).
-
-- Download the checkpoints file (SETR-MLA trained on ADE20k from the [MMSegmentation Model Zoo](https://github.com/open-mmlab/mmsegmentation/blob/master/configs/setr/README.md)).
-
-  ```bash
-  curl --output checkpoints.pth https://download.openmmlab.com/mmsegmentation/v0.5/setr/setr_mla_512x512_160k_b8_ade20k/setr_mla_512x512_160k_b8_ade20k_20210619_191118-c6d21df0.pth
-  ```
-
-- Run the Python script.
-  ```bash
-  python heirarchy-generation.py "./image.png" "./mmsegmentation/configs/setr/setr_mla_512x512_160k_b8_ade20k.py" "./checkpoints.pth"
+  python hierarchy-generation.py -h
   ```
