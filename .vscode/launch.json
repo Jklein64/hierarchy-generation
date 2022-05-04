@@ -11,13 +11,13 @@
             "program": "${file}",
             "console": "internalConsole",
             "args": [
-                "baseball.png",
+                "coffee.jpeg",
                 "-c",
-                "100",
+                "30",
                 "400",
                 "-c",
-                "500",
-                "250",
+                "115",
+                "220",
             ]
         }
     ]
