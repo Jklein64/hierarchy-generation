@@ -28,7 +28,7 @@ def main():
 
     # turn (x, y) array into (row, col) tuple to allow for indexing
     # note that constraints is sorted with most recent as last
-    constraints = args.constraints
+    constraints = [tuple(c) for c in args.constraints]
     # original is an 8-bit rgb(a) image, possibly with opacity;
     # transparent if within bounding box but outside segment
     original = np.array(Image.open(args.image))
@@ -45,9 +45,10 @@ def main():
     # show the initial superpixel segmentation
     show(original, regions=labels, constraints=constraints)
 
-    neighbors = neighbor_matrix(original, labels, metric=wasserstein_image_distance)
     # merge neighbors within threshold to reduce the total number of superpixels
+    neighbors = neighbor_matrix(original, labels, metric=wasserstein_image_distance)
     # invert neighbors to represent distance instead of similarity; delta is arbitrary
+    # FIXME justify delta choice
     merged_rag = connected_within_threshold(labels, 1 - neighbors, delta=0.01)
 
     # show the image after merging the region adjacency graph
@@ -55,16 +56,32 @@ def main():
 
     distances = distances_matrix(original, labels, metric=average_color_distance)
 
+    merged = constrained_division(labels, distances, constraints[0], constraints[1])
+    show(original, regions=merged, constraints=constraints)
+
+    pass
+
+    # TODO do a constrained division iterating through the constraints.
+    # Given time-consecutive constraints 1, 2, and 3, divide between 1 and 2
+    # first.  Then, mask out the region that doesn't include 3 and divide
+    # again between 3 and the label for the unmasked region.
+
+
+def constrained_division(superpixels: np.ndarray, distances: np.ndarray, old_constraint: tuple[int, int], new_constraint: tuple[int, int]):
+    """Given a possibly-transparent image's masked superpixel segmentation, the pairwise distance between those superpixels (after RAG merging), and two constraints, divide the image into two semantic regions such that each constraint is in its own region."""
+    # binary search to find the largest value of 
+    # delta which still separates the constraints
     low = 0
     high = np.max(distances)
     delta = (high + low) / 2
+    # FIXME justify threshold choice
     threshold = high * 0.001
     # create initial merged image
-    merged = connected_within_threshold(labels, distances, delta)
+    merged = connected_within_threshold(superpixels, distances, delta)
     # find which superpixel each constraints belongs to
-    a, b = merged[tuple(np.transpose(constraints))]
-    # binary search until they're close enough;
-    # must end with constraints separated
+    a = merged[old_constraint]
+    b = merged[new_constraint]
+    # a == b so that it always separates the constraints
     while a == b or (high - low) > threshold:
         if a == b:
             # too general
@@ -74,22 +91,16 @@ def main():
             low = delta
         # reset loop variables
         delta = (high + low) / 2
-        merged = connected_within_threshold(labels, distances, delta)
-        a, b  = merged[tuple(np.transpose(constraints))]
-
-    # show the image after merging based on delta
-    show(original, regions=merged, constraints=constraints)
-
-    # assign regions not containing either 
-    # constraint to the older constraint
+        merged = connected_within_threshold(superpixels, distances, delta)
+        a = merged[old_constraint]
+        b = merged[new_constraint]
+    # assign regions not containing either constraint to the older one
     for label in np.unique(merged[~np.ma.getmask(merged)]):
         # merge all but the region containing the most recent constraint
         merged[merged == label] = b if label == b else a
-
-    # show the image after collapsing to two regions
-    show(original, regions=merged, constraints=constraints)
-
-    pass
+    return merged
+    
+    
 
 
 def neighbor_matrix(original: np.ndarray, superpixels: np.ndarray, metric: Callable[[np.ndarray, np.ndarray], float]) -> np.ndarray:
@@ -112,7 +123,7 @@ def neighbor_matrix(original: np.ndarray, superpixels: np.ndarray, metric: Calla
     neighbors /= np.max(neighbors)
     # bigger values for more similarity
     neighbors[np.nonzero(neighbors)] = 1 - neighbors[np.nonzero(neighbors)]
-    # SPEED this should be a sparse matrix
+    # FIXME this should be a sparse matrix
     return neighbors
 
 
@@ -122,7 +133,7 @@ def superpixel_neighbors(superpixels: np.ndarray, i: int):
     expanded = binary_dilation(selection)
     # binary XOR to get the difference
     difference = expanded ^ selection
-    # get label for each pixel in difference
+
     labels = set()
     for pixel in np.transpose(np.where(difference)):
         label = superpixels[tuple(pixel)]
