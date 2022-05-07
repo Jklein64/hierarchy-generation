@@ -49,43 +49,39 @@ def main():
     neighbors = neighbor_matrix(original, labels, metric=wasserstein_image_distance)
     # invert neighbors to represent distance instead of similarity; delta is arbitrary
     # FIXME justify delta choice
-    merged_rag = connected_within_threshold(labels, 1 - neighbors, delta=0.01)
+    merged_local = connected_within_threshold(labels, 1 - neighbors, delta=0.01)
 
     # show the image after merging the region adjacency graph
     # show(original, regions=merged_rag, constraints=constraints)
 
-    distances = distances_matrix(original, merged_rag, metric=average_color_distance)
+    distances = distances_matrix(original, merged_local, metric=average_color_distance)
 
-    merged = constrained_division(merged_rag, distances, (0, 1), constraints)
+    merged_nonlocal = constrained_division(merged_local, distances, (0, 1), constraints)
 
     # constraint labelling works up to here
 
     # show the image after applying the first two constraints
-    show(original, regions=merged, constraints=constraints)
+    show(original, regions=merged_nonlocal, constraints=constraints)
 
-
-    # TODO fix the names
     # TODO generalize to n constraints
 
-    # FIXME temporary cheat: look at values where constraint is zero
-    masked_merged_rag = np.ma.array(merged_rag, mask=(merged != 0))
-    # which superpixels are remaining? make a list of labels
-    removed_superpixels = np.unique(merged_rag[merged != 0])
+    # mask is True where the pixel is shared by the two constraints
+    shared_constraint = merged_nonlocal[constraints[2]]
+    shared_mask = merged_nonlocal == shared_constraint
+    shared_superpixels = np.ma.array(merged_local, mask=(~shared_mask))
+    # which superpixels are excluded? make a list of labels
+    removed_superpixels = np.unique(merged_local[~shared_mask])
     removed_mask = np.ones_like(distances).astype(bool)
     for i in removed_superpixels:
         # remove i'th row and column
         removed_mask[i, ...] = False
         removed_mask[..., i] = False
     d = np.shape(distances)[0] - len(removed_superpixels)
-    # remove each of those from the distances matrix
-    m = constrained_division(masked_merged_rag, np.reshape(distances[removed_mask], (d, d)), (0, 2), constraints)
-    show(original, regions=m, constraints=constraints)
+    # recreate distances matrix after removing the superpixels
+    shared_distances = np.reshape(distances[removed_mask], (d, d))
+    divided = constrained_division(shared_superpixels, shared_distances, (shared_constraint, 2), constraints)
+    show(original, regions=divided, constraints=constraints)
     pass
-
-    # TODO do a constrained division iterating through the constraints.
-    # Given time-consecutive constraints 1, 2, and 3, divide between 1 and 2
-    # first.  Then, mask out the region that doesn't include 3 and divide
-    # again between 3 and the label for the unmasked region.
 
 
 def constrained_division(superpixels: np.ndarray, distances: np.ndarray, c_i: tuple[int, int], constraints: list):
