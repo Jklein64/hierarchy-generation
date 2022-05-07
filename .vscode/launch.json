@@ -11,13 +11,16 @@
             "program": "${file}",
             "console": "internalConsole",
             "args": [
-                "coffee.jpeg",
+                "image.png",
                 "-c",
-                "30",
-                "400",
+                "250",
+                "850",
                 "-c",
-                "115",
-                "220",
+                "360",
+                "330",
+                "-c",
+                "225",
+                "175"
             ]
         }
     ]
