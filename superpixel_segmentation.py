@@ -34,25 +34,25 @@ def main():
     original = np.array(Image.open(args.image))
 
     # show the original image
-    # show(original, constraints=constraints)
+    show(original, constraints=constraints)
 
     labels = np.ma.array(
         # labels maps pixel location to a superpixel label
-        slic(original[..., 0:3] / 255, 200, start_label=0),
+        slic(original[..., 0:3] / 255, 500, start_label=0),
         # don't mask anything if no alpha channel, otherwise mask transparent pixels
         mask=np.shape(original)[-1] == 4 and original[..., -1] == 0)
 
     # show the initial superpixel segmentation
-    # show(original, regions=labels, constraints=constraints)
+    show(original, regions=labels, constraints=constraints)
 
     # merge neighbors within threshold to reduce the total number of superpixels
     neighbors = neighbor_matrix(original, labels, metric=wasserstein_image_distance)
     # invert neighbors to represent distance instead of similarity; delta is arbitrary
     # FIXME justify delta choice
-    merged_local = connected_within_threshold(labels, 1 - neighbors, delta=0.01)
+    merged_local = connected_within_threshold(labels, 1 - neighbors, delta=0.001)
 
     # show the image after merging the region adjacency graph
-    # show(original, regions=merged_rag, constraints=constraints)
+    show(original, regions=merged_local, constraints=constraints)
 
     distances = distances_matrix(original, merged_local, metric=average_color_distance)
 
@@ -80,7 +80,10 @@ def main():
     # recreate distances matrix after removing the superpixels
     shared_distances = np.reshape(distances[removed_mask], (d, d))
     divided = constrained_division(shared_superpixels, shared_distances, (shared_constraint, 2), constraints)
+
+    # show the image after addressing the third constraint
     show(original, regions=divided, constraints=constraints)
+
     pass
 
 
