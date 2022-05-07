@@ -4,6 +4,9 @@ import numpy as np
 import ot
 
 
+# make something semantic??
+
+
 def average_color_distance(pixels_1: np.ndarray, pixels_2: np.ndarray) -> float:
     """Compute the squared distance between the average colors of the given sets of pixels."""
     # cast to float to avoid integer truncation

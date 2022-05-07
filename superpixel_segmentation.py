@@ -118,7 +118,7 @@ def constrained_division(superpixels: np.ndarray, distances: np.ndarray, c_i: tu
     # assign regions not containing any constraint to the older one
     for label in np.unique(merged):
         if all(label != merged[c] for c in constraints):
-            # merge all but the region containing the most recent constraint
+            # replace label with a
             merged[merged == label] = a
     # make merged store constraint index at each pixel
     label_map = {}
