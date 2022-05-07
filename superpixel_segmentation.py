@@ -54,11 +54,37 @@ def main():
     # show the image after merging the region adjacency graph
     show(original, regions=merged_rag, constraints=constraints)
 
-    distances = distances_matrix(original, labels, metric=average_color_distance)
+    distances = distances_matrix(original, merged_rag, metric=average_color_distance)
 
-    merged = constrained_division(labels, distances, constraints[0], constraints[1])
+    merged = constrained_division(merged_rag, distances, constraints[0], constraints[1])
+
+    # show the image after applying the first two constraints
     show(original, regions=merged, constraints=constraints)
 
+
+    # TODO fix the names
+    # TODO generalize to n constraints
+    label_containing_3 = merged[constraints[2]]
+    # ignore the last constraint
+    for c in constraints[0:-1]:
+        pixel_has_3 = merged == label_containing_3
+        # pixel at constraint is part of region of interest
+        if pixel_has_3[c]:
+            break
+    masked_merged_rag = np.ma.array(merged_rag, mask=(merged != label_containing_3))
+    # TODO AAAAAAA need to mask out more superpixels from the distances
+
+    # which superpixels are remaining? make a list of labels
+    removed_superpixels = np.unique(merged_rag[merged != label_containing_3])
+    removed_mask = np.ones_like(distances).astype(bool)
+    for i in removed_superpixels:
+        # remove i'th row and column
+        removed_mask[i, ...] = False
+        removed_mask[..., i] = False
+    d = np.shape(distances)[0] - len(removed_superpixels)
+    # remove each of those from the distances matrix
+    # m
+    m = constrained_division(masked_merged_rag, np.reshape(distances[removed_mask], (d, d)), c, constraints[2])
     pass
 
     # TODO do a constrained division iterating through the constraints.
@@ -68,7 +94,7 @@ def main():
 
 
 def constrained_division(superpixels: np.ndarray, distances: np.ndarray, old_constraint: tuple[int, int], new_constraint: tuple[int, int]):
-    """Given a possibly-transparent image's masked superpixel segmentation, the pairwise distance between those superpixels (after RAG merging), and two constraints, divide the image into two semantic regions such that each constraint is in its own region."""
+    """Given a possibly-transparent image's masked superpixel segmentation, the pairwise distance between those superpixels (after RAG merging), and two constraints, divide the image into two semantic regions such that each constraint is in its own region.  The labels returned from this method correspond to the given constraints."""
     # binary search to find the largest value of 
     # delta which still separates the constraints
     low = 0
