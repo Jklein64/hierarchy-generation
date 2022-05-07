@@ -7,6 +7,8 @@ import ot
 # make something semantic??
 
 
+# FIXME precompute the average color before comparing to reduce computation,
+# since comparison with a different superpixel doesn't change the color
 def average_color_distance(pixels_1: np.ndarray, pixels_2: np.ndarray) -> float:
     """Compute the squared distance between the average colors of the given sets of pixels."""
     # cast to float to avoid integer truncation
