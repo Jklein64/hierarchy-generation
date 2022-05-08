@@ -141,10 +141,28 @@ def constrained_division(superpixels: np.ndarray, merged_nonlocal: np.ndarray, d
         # don't let unused constraints affect it
         if label not in label_map:
             label_map[label] = i
+    # [([merged == l], [c]) for l, c in label_map.items()]
+    conditions = []
+    replacements = []
+    for label, constraint in label_map.items():
+        conditions.append(merged == label)
+        replacements.append(constraint)
+    merged = np.select(
+        conditions, replacements,
+        # *np.transpose([(merged == l, c) for l, c in label_map.items()]),
+        # [merged == l for l in label_map.keys()],
+        # [constraint for constraint in label_map.values()],
+        default=np.ma.masked)
+    # with np.nditer(merged, flags=["multi_index"], op_flags=["readwrite"]) as it:
+    #     for x in it:
+    #         row, col = it.multi_index
+    #         x[...] = label_map.get(merged[row, col], np.ma.masked)
     # FIXME why does this take around a second for masked arrays?
-    merged = np.vectorize(lambda l: label_map.get(l, np.ma.masked))(merged)
+    # merged = np.vectorize(lambda l: label_map.get(l, np.ma.masked))(merged)
     # fill masked values with previous constraint
     merged = np.ma.filled(merged, merged_nonlocal)
+    # select() casts to float ¯\_(ツ)_/¯
+    merged = merged.astype(int)
     return merged
     
     
