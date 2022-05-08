@@ -129,15 +129,8 @@ def constrained_division(superpixels: np.ndarray, merged_nonlocal: np.ndarray, d
         if label is np.ma.masked:
             continue
         if label not in constraint_labels:
+            # replace label with less recent constraint
             merged[merged == label] = a
-        # for each constraint
-        # get that constraint's label
-        # if label isn't in that list
-        # then merge it with a
-        # FIXME check
-        # if all(label != merged[c] for c in constraints):
-        #     # replace label with a
-        #     merged[merged == label] = a
     # make merged store constraint index at each pixel
     label_map = {}
     for i, c in enumerate(constraints):
@@ -148,14 +141,9 @@ def constrained_division(superpixels: np.ndarray, merged_nonlocal: np.ndarray, d
         # don't let unused constraints affect it
         if label not in label_map:
             label_map[label] = i
-    # apply in single sweep; operate on unmasked region
-    # FIXME profile! why the hell is this so slow?
-    flat_iterator = merged[~np.ma.getmask(merged)].flat
-    for i, l in enumerate(np.ma.compressed(merged)):
-        flat_iterator[i] = label_map[l]
-    # merged = np.vectorize(lambda l: label_map.get(l, np.ma.masked))(merged)
-    # FIXME should fill masked values with previous constraint
-    # fill with -1, an unused label, to avoid masking issues
+    # FIXME why does this take around a second for masked arrays?
+    merged = np.vectorize(lambda l: label_map.get(l, np.ma.masked))(merged)
+    # fill masked values with previous constraint
     merged = np.ma.filled(merged, merged_nonlocal)
     return merged
     
