@@ -46,6 +46,7 @@ def main():
     show(original, regions=labels, constraints=constraints)
 
     # merge neighbors within threshold to reduce the total number of superpixels
+    # FIXME figure out why this function takes so long, even with average color distance
     neighbors = neighbor_matrix(original, labels, metric=wasserstein_image_distance)
     # invert neighbors to represent distance instead of similarity; delta is arbitrary
     # FIXME justify delta choice
@@ -54,16 +55,12 @@ def main():
     # show the image after merging the region adjacency graph
     show(original, regions=merged_local, constraints=constraints)
 
+    # create dense distances matrix and merge based on optimized delta
     distances = distances_matrix(original, merged_local, metric=average_color_distance)
-
     merged_nonlocal = constrained_division(merged_local, np.zeros_like(labels), distances, (0, 1), constraints)
-
-    # constraint labelling works up to here
 
     # show the image after applying the first two constraints
     show(original, regions=merged_nonlocal, constraints=constraints)
-
-    # TODO generalize to n constraints
 
     divided = np.copy(merged_nonlocal)
     for c_i, constraint in enumerate(constraints):
@@ -167,7 +164,7 @@ def neighbor_matrix(original: np.ndarray, superpixels: np.ndarray, metric: Calla
     neighbors /= np.max(neighbors)
     # bigger values for more similarity
     neighbors[np.nonzero(neighbors)] = 1 - neighbors[np.nonzero(neighbors)]
-    # FIXME this should be a sparse matrix
+    # FIXME should this be a sparse matrix?
     return neighbors
 
 
