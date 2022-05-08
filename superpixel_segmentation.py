@@ -124,28 +124,20 @@ def constrained_division(superpixels: np.ndarray, merged_nonlocal: np.ndarray, d
         b = merged[new_constraint]
     # assign regions not containing any constraint to the older one
     constraint_labels = merged[tuple(np.transpose(constraints))]
-    for label in np.unique(merged): 
-        # don't set masked values
-        if label is np.ma.masked:
-            continue
+    for label in np.ma.compressed(np.unique(merged)): 
         if label not in constraint_labels:
             # replace label with less recent constraint
             merged[merged == label] = a
     # make merged store constraint index at each pixel
-    label_map = {}
-    for i, c in enumerate(constraints):
-        label = merged[c]
-        # masked confuses __in__
-        if label is np.ma.masked:
-            continue
-        # don't let unused constraints affect it
-        if label not in label_map:
-            label_map[label] = i
     conditions = []
     replacements = []
-    for label, constraint in label_map.items():
-        conditions.append(merged == label)
-        replacements.append(constraint)
+    # +1 to include end of range, +1 again to include new constraint
+    for i, c in enumerate(constraints[:np.max(merged_nonlocal) + 2]):
+        label = merged[c]
+        # ignore masked labels
+        if label is not np.ma.masked:
+            conditions.append(merged == label)
+            replacements.append(i)
     # use -1 as "masked" since masked arrays get overridden
     merged = np.select(conditions, replacements, default=-1)
     # fill masked values with previous constraint
