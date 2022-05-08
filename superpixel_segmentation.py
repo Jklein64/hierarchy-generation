@@ -56,7 +56,7 @@ def main():
 
     distances = distances_matrix(original, merged_local, metric=average_color_distance)
 
-    merged_nonlocal = constrained_division(merged_local, distances, (0, 1), constraints)
+    merged_nonlocal = constrained_division(merged_local, np.zeros_like(labels), distances, (0, 1), constraints)
 
     # constraint labelling works up to here
 
@@ -65,29 +65,35 @@ def main():
 
     # TODO generalize to n constraints
 
-    # mask is True where the pixel is shared by the two constraints
-    shared_constraint = merged_nonlocal[constraints[2]]
-    shared_mask = merged_nonlocal == shared_constraint
-    shared_superpixels = np.ma.array(merged_local, mask=(~shared_mask))
-    # which superpixels are excluded? make a list of labels
-    removed_superpixels = np.unique(merged_local[~shared_mask])
-    removed_mask = np.ones_like(distances).astype(bool)
-    for i in removed_superpixels:
-        # remove i'th row and column
-        removed_mask[i, ...] = False
-        removed_mask[..., i] = False
-    d = np.shape(distances)[0] - len(removed_superpixels)
-    # recreate distances matrix after removing the superpixels
-    shared_distances = np.reshape(distances[removed_mask], (d, d))
-    divided = constrained_division(shared_superpixels, shared_distances, (shared_constraint, 2), constraints)
+    divided = np.copy(merged_nonlocal)
+    for c_i, constraint in enumerate(constraints):
+        # ignore the first two constraints
+        if c_i < 2:
+            continue
+        # mask is True where the pixel is shared by this constraint
+        # and the constraint currently governing its pixel
+        shared_constraint = divided[constraint]
+        shared_mask = divided == shared_constraint
+        shared_superpixels = np.ma.array(merged_local, mask=(~shared_mask))
+        # which superpixels are excluded? make a list of labels
+        removed_superpixels = np.unique(merged_local[~shared_mask])
+        removed_mask = np.ones_like(distances).astype(bool)
+        for i in removed_superpixels:
+            # remove i'th row and column
+            removed_mask[i, ...] = False
+            removed_mask[..., i] = False
+        d = np.shape(distances)[0] - len(removed_superpixels)
+        # recreate distances matrix after removing those superpixels
+        shared_distances = np.reshape(distances[removed_mask], (d, d))
+        divided = constrained_division(shared_superpixels, divided, shared_distances, (shared_constraint, c_i), constraints)
 
-    # show the image after addressing the third constraint
-    show(original, regions=divided, constraints=constraints)
+        # show the image after addressing the third constraint
+        show(original, regions=divided, constraints=constraints)
 
     pass
 
 
-def constrained_division(superpixels: np.ndarray, distances: np.ndarray, c_i: tuple[int, int], constraints: list):
+def constrained_division(superpixels: np.ndarray, merged_nonlocal: np.ndarray, distances: np.ndarray, c_i: tuple[int, int], constraints: list):
     """Given a possibly-transparent image's masked superpixel segmentation, the pairwise distance between those superpixels (after RAG merging), and two indices into the given constraints list, divide the image into two semantic regions such that each constraint is in its own region.  The labels returned from this method correspond to the given constraints."""
     old_constraint = constraints[c_i[0]]
     new_constraint = constraints[c_i[1]]
@@ -116,21 +122,42 @@ def constrained_division(superpixels: np.ndarray, distances: np.ndarray, c_i: tu
         merged = connected_within_threshold(superpixels, distances, delta)
         a = merged[old_constraint]
         b = merged[new_constraint]
-    # fill with -1, an unused label, to avoid masking issues
-    merged = np.ma.filled(merged, -1)
     # assign regions not containing any constraint to the older one
-    for label in np.unique(merged):
-        if all(label != merged[c] for c in constraints):
-            # replace label with a
+    constraint_labels = merged[tuple(np.transpose(constraints))]
+    for label in np.unique(merged): 
+        # don't set masked values
+        if label is np.ma.masked:
+            continue
+        if label not in constraint_labels:
             merged[merged == label] = a
+        # for each constraint
+        # get that constraint's label
+        # if label isn't in that list
+        # then merge it with a
+        # FIXME check
+        # if all(label != merged[c] for c in constraints):
+        #     # replace label with a
+        #     merged[merged == label] = a
     # make merged store constraint index at each pixel
     label_map = {}
     for i, c in enumerate(constraints):
         label = merged[c]
+        # masked confuses __in__
+        if label is np.ma.masked:
+            continue
         # don't let unused constraints affect it
         if label not in label_map:
             label_map[label] = i
-    return np.vectorize(lambda l: label_map[l])(merged)
+    # apply in single sweep; operate on unmasked region
+    # FIXME profile! why the hell is this so slow?
+    flat_iterator = merged[~np.ma.getmask(merged)].flat
+    for i, l in enumerate(np.ma.compressed(merged)):
+        flat_iterator[i] = label_map[l]
+    # merged = np.vectorize(lambda l: label_map.get(l, np.ma.masked))(merged)
+    # FIXME should fill masked values with previous constraint
+    # fill with -1, an unused label, to avoid masking issues
+    merged = np.ma.filled(merged, merged_nonlocal)
+    return merged
     
     
 
