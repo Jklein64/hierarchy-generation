@@ -45,23 +45,14 @@ def main():
     # show the initial superpixel segmentation
     show(original, regions=labels, constraints=constraints)
 
-    # merge neighbors within threshold to reduce the total number of superpixels
-    neighbors = neighbor_matrix(original, labels, metric=Wasserstein)
-    # invert neighbors to represent distance instead of similarity; delta is arbitrary
-    # FIXME justify delta choice
-    merged_local = connected_within_threshold(labels, 1 - neighbors, delta=0.001)
-
-    # show the image after merging the region adjacency graph
-    show(original, regions=merged_local, constraints=constraints)
-
     # create dense distances matrix and merge based on optimized delta
-    distances = distances_matrix(original, merged_local, metric=AverageColor)
-    merged_nonlocal = constrained_division(merged_local, np.zeros_like(labels), distances, (0, 1), constraints)
+    distances = distances_matrix(original, labels, metric=AverageColor)
+    merged = constrained_division(labels, np.zeros_like(labels), distances, (0, 1), constraints)
 
     # show the image after applying the first two constraints
-    show(original, regions=merged_nonlocal, constraints=constraints)
+    show(original, regions=merged, constraints=constraints)
 
-    divided = np.copy(merged_nonlocal)
+    divided = np.copy(merged)
     for c_i, constraint in enumerate(constraints):
         # ignore the first two constraints
         if c_i < 2:
@@ -70,9 +61,9 @@ def main():
         # and the constraint currently governing its pixel
         shared_constraint = divided[constraint]
         shared_mask = divided == shared_constraint
-        shared_superpixels = np.ma.array(merged_local, mask=(~shared_mask))
+        shared_superpixels = np.ma.array(labels, mask=(~shared_mask))
         # which superpixels are excluded? make a list of labels
-        removed_superpixels = np.unique(merged_local[~shared_mask])
+        removed_superpixels = np.unique(labels[~shared_mask])
         removed_mask = np.ones_like(distances).astype(bool)
         for i in removed_superpixels:
             # remove i'th row and column
@@ -139,46 +130,6 @@ def constrained_division(superpixels: np.ndarray, merged_nonlocal: np.ndarray, d
     # fill masked values with previous constraint
     merged[merged == -1] = merged_nonlocal[merged == -1]
     return merged
-
-
-def neighbor_matrix(original: np.ndarray, superpixels: np.ndarray, metric: Metric) -> np.ndarray:
-    """Create a weighed adjacency matrix between every pair of superpixels which neighbors each other.  Weighed region adjacency graph!  The resulting matrix is normalized so that the weights are within [0, 1], and then rescaled so that higher values correspond to higher similarity."""
-    # store list of valid superpixel labels
-    unique_labels = np.ma.compressed(np.ma.unique(superpixels))
-    # precompute part of the metric to avoid recomputing certain things
-    precomputed = [metric(original[superpixels == label]) for label in unique_labels] 
-    # create n-by-n matrix to compare distances between neighbors
-    neighbors = np.zeros((len(unique_labels), len(unique_labels)))
-    # iterate through neighbors and calculate distances
-    for i in unique_labels:
-        for j in superpixel_neighbors(superpixels, i):
-            # only compute distances one way
-            if j < i:
-                a = precomputed[i]
-                b = precomputed[j]
-                neighbors[i, j] = metric.compare(a, b)
-    # # fill out the other half of the matrix
-    neighbors = neighbors + np.transpose(neighbors)
-    # normalize to be within zero and one
-    neighbors /= np.max(neighbors)
-    # bigger values for more similarity
-    neighbors[np.nonzero(neighbors)] = 1 - neighbors[np.nonzero(neighbors)]
-    # FIXME should this be a sparse matrix?
-    return neighbors
-
-
-def superpixel_neighbors(superpixels: np.ndarray, i: int):
-    """Given a mapping from pixel location to superpixel label and a specific superpixel number, return the labels of all of the superpixels which neighbor the one specified."""
-    selection = superpixels == i
-    expanded = binary_dilation(selection)
-    # binary XOR to get the difference
-    difference = expanded ^ selection
-
-    labels = set()
-    for pixel in np.transpose(np.where(difference)):
-        label = superpixels[tuple(pixel)]
-        labels.add(label)
-    return labels
 
 
 def connected_within_threshold(superpixels: np.ndarray, distances: np.ndarray, delta: float = 0.01):
