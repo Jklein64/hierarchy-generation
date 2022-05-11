@@ -10,7 +10,7 @@ from PIL import Image
 
 import numpy as np
 
-from metrics import wasserstein_image_distance, average_color_distance
+from metrics import Metric, AverageColor, Wasserstein
 from visualization import show
 
 
@@ -46,8 +46,7 @@ def main():
     show(original, regions=labels, constraints=constraints)
 
     # merge neighbors within threshold to reduce the total number of superpixels
-    # FIXME figure out why this function takes so long, even with average color distance
-    neighbors = neighbor_matrix(original, labels, metric=wasserstein_image_distance)
+    neighbors = neighbor_matrix(original, labels, metric=Wasserstein)
     # invert neighbors to represent distance instead of similarity; delta is arbitrary
     # FIXME justify delta choice
     merged_local = connected_within_threshold(labels, 1 - neighbors, delta=0.001)
@@ -56,7 +55,7 @@ def main():
     show(original, regions=merged_local, constraints=constraints)
 
     # create dense distances matrix and merge based on optimized delta
-    distances = distances_matrix(original, merged_local, metric=average_color_distance)
+    distances = distances_matrix(original, merged_local, metric=AverageColor)
     merged_nonlocal = constrained_division(merged_local, np.zeros_like(labels), distances, (0, 1), constraints)
 
     # show the image after applying the first two constraints
@@ -140,16 +139,14 @@ def constrained_division(superpixels: np.ndarray, merged_nonlocal: np.ndarray, d
     # fill masked values with previous constraint
     merged[merged == -1] = merged_nonlocal[merged == -1]
     return merged
-    
-    
 
 
-def neighbor_matrix(original: np.ndarray, superpixels: np.ndarray, metric: Callable[[np.ndarray, np.ndarray], float]) -> np.ndarray:
+def neighbor_matrix(original: np.ndarray, superpixels: np.ndarray, metric: Metric) -> np.ndarray:
     """Create a weighed adjacency matrix between every pair of superpixels which neighbors each other.  Weighed region adjacency graph!  The resulting matrix is normalized so that the weights are within [0, 1], and then rescaled so that higher values correspond to higher similarity."""
     # store list of valid superpixel labels
     unique_labels = np.ma.compressed(np.ma.unique(superpixels))
-    # pixels is a list of pixel values for the n'th superpixel
-    pixels = [original[superpixels == label] for label in unique_labels]
+    # precompute part of the metric to avoid recomputing certain things
+    precomputed = [metric(original[superpixels == label]) for label in unique_labels] 
     # create n-by-n matrix to compare distances between neighbors
     neighbors = np.zeros((len(unique_labels), len(unique_labels)))
     # iterate through neighbors and calculate distances
@@ -157,8 +154,10 @@ def neighbor_matrix(original: np.ndarray, superpixels: np.ndarray, metric: Calla
         for j in superpixel_neighbors(superpixels, i):
             # only compute distances one way
             if j < i:
-                neighbors[i, j] = metric(pixels[i], pixels[j])
-    # fill out the other half of the matrix
+                a = precomputed[i]
+                b = precomputed[j]
+                neighbors[i, j] = metric.compare(a, b)
+    # # fill out the other half of the matrix
     neighbors = neighbors + np.transpose(neighbors)
     # normalize to be within zero and one
     neighbors /= np.max(neighbors)
@@ -196,17 +195,19 @@ def connected_within_threshold(superpixels: np.ndarray, distances: np.ndarray, d
     return labels
 
 
-def distances_matrix(original: np.ndarray, superpixels: np.ndarray, metric: Callable[[np.ndarray, np.ndarray], float]) -> np.ndarray:
+def distances_matrix(original: np.ndarray, superpixels: np.ndarray, metric: Metric) -> np.ndarray:
     """Create a matrix with the metric-based distances between every pair of the given superpixels implied by the original and labelled images."""
     # store list of valid superpixel labels
     unique_labels = np.ma.compressed(np.ma.unique(superpixels))
-    # pixels is a list of pixel values for the n'th superpixel
-    pixels = [original[superpixels == label] for label in unique_labels]
+    # precompute part of the metric to avoid recomputing certain things
+    precomputed = [metric(original[superpixels == label]) for label in unique_labels]
     # create n-by-n matrix to compare distances between n superpixels
     distances = np.zeros((len(unique_labels), len(unique_labels)))
     # distance is symmetric, so only compare each pair once (below diagonal)
     for i, j in np.transpose(np.tril_indices(len(unique_labels), k=-1)):
-        distances[i, j] = metric(pixels[i], pixels[j])
+        a = precomputed[i]
+        b = precomputed[j]
+        distances[i, j] = metric.compare(a, b)
     # fill in the rest of the distances matrix
     return distances + np.transpose(distances)
 
