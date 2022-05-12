@@ -2,33 +2,14 @@ from __future__ import annotations
 
 from PIL import Image
 
+from metrics import pca
+
 import numpy as np
 
 
 def show_features(features: np.ndarray):
     """Given a mapping (i, j) -> feature vector, create a visualization representative of the regions identified by the feature vectors."""
-    # reshape to just be a list of feature row-vectors
-    width, height, depth = np.shape(features)
-    vectors = np.reshape(features, (width * height, depth))
-    # z-score and create covariance
-    mu = np.mean(vectors, axis=0)
-    sigma = np.std(vectors, axis=0)
-    standardized = (vectors - mu) / sigma
-    covariance = np.cov(standardized.T)
-    # make basis of 3 most significant eigenvectors
-    eigenstuffs = np.linalg.eig(covariance)
-    # argsort is ascending but we want descending
-    order = np.flip(np.argsort(eigenstuffs[0]))
-    eigenvectors = eigenstuffs[1][..., order]
-    basis = eigenvectors[..., :3]
-    # project features onto basis
-    projected = vectors @ basis
-    # normalize to within [0, 1]
-    projected -= np.min(projected, axis=0)
-    projected /= np.max(projected, axis=0)
-    # turn into 8-bit image
-    image = np.reshape(projected, (width, height, 3))
-    return (image * 255).astype(np.uint8)
+    return pca(features, dim=3)
 
 
 def show_regions(original: np.ndarray, labels: np.ndarray):

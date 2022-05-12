@@ -4,9 +4,41 @@ import scipy.io as sio
 import numpy as np
 import ot
 
+def pca(features: np.ndarray, dim = None):
+    """Compute the PCA of the given feature vectors.  If the number of dimensions to project to isn't passed, then it will pick a number of vectors such that they can explain 95% of the variance."""
+    width, height, depth = np.shape(features)
+    vectors = np.reshape(features, (width * height, depth))
+    # z-score and create covariance
+    mu = np.mean(vectors, axis=0)
+    sigma = np.std(vectors, axis=0)
+    standardized = (vectors - mu) / sigma
+    covariance = np.cov(standardized.T)
+    # make basis of 3 most significant eigenvectors
+    eigenstuffs = np.linalg.eig(covariance)
+    # argsort is ascending but we want descending
+    order = np.flip(np.argsort(eigenstuffs[0]))
+    eigenvectors = eigenstuffs[1][..., order]
+    # pick dim based on 95% rule
+    if dim is None:
+        eigenvalues = eigenstuffs[0][order]
+        explained = eigenvalues / np.sum(eigenvalues)
+        # +1 to include the one that pushes it over .95
+        dim = np.flatnonzero(np.cumsum(explained) > .95)[0] + 1
+    basis = eigenvectors[..., :dim]
+    # project features onto basis
+    projected = vectors @ basis
+    # normalize to within [0, 1]
+    projected -= np.min(projected, axis=0)
+    projected /= np.max(projected, axis=0)
+     # turn into 8-bit image
+    image = np.reshape(projected, (width, height, dim))
+    return (image * 255).astype(np.uint8)
+
 
 # change this when changing the input image
 features: np.ndarray = sio.loadmat("features/Feat/nesi.mat")['embedmap']
+# project features to 3D
+features = pca(features)
 
 
 class Metric:
