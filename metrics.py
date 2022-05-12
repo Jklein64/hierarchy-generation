@@ -45,6 +45,7 @@ class Metric:
     """Class wrapper for metrics, used to precompute parts for efficiency."""
 
     def __init__(self, rgbij: np.ndarray) -> None:
+        self.rgbij = rgbij
         self.pixels: np.ndarray = rgbij[..., 0:3]
         self.indices: tuple[np.ndarray] = tuple(rgbij[..., 3:5].T)
         self.value = self.compute()
@@ -61,15 +62,33 @@ class AverageColor(Metric):
         return np.mean(self.pixels, axis=0)
 
     def compare(self, other):
-        return sum(np.square(self.value - other.value))
+        return np.linalg.norm(self.value - other.value)
+
+
+class FeaturesPCA(Metric):
+    def compute(self):
+        return np.mean(features[self.indices], axis=0)
+
+    def compare(self, other: Metric):
+        return np.linalg.norm(self.value - other.value)
 
 
 class ColorFeatures(Metric):
+    # importance of features
+    gamma = 0.6
+
     def compute(self):
-        pass
+        rgb = AverageColor(self.rgbij)
+        fea = FeaturesPCA(self.rgbij)
+        return (rgb, fea)
 
     def compare(self, other: Metric):
-        pass
+        rgb_a, fea_a = self.value
+        rgb_b, fea_b = other.value
+        rgb_dist = rgb_a.compare(rgb_b)
+        fea_dist = fea_a.compare(fea_b)
+        gamma = ColorFeatures.gamma
+        return (1 - gamma) * rgb_dist + gamma * fea_dist
 
 
 class Wasserstein(Metric):
@@ -110,4 +129,3 @@ class Wasserstein(Metric):
 
 
 # make something semantic??
-

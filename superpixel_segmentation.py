@@ -9,7 +9,7 @@ from PIL import Image
 
 import numpy as np
 
-from metrics import Metric, AverageColor
+from metrics import Metric, AverageColor, ColorFeatures
 from visualization import show
 
 
@@ -45,7 +45,7 @@ def main():
     show(original, regions=labels, constraints=constraints)
     
     # create dense distances matrix and merge based on optimized delta
-    distances = distances_matrix(original, labels, metric=AverageColor)
+    distances = distances_matrix(original, labels, metric=ColorFeatures)
     merged = constrained_division(labels, np.zeros_like(labels), distances, (0, 1), constraints)
 
     # show the image after applying the first two constraints
