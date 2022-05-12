@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+import scipy.io as sio
 import numpy as np
 import ot
+
+
+# change this when changing the input image
+features: np.ndarray = sio.loadmat("features/Feat/nesi.mat")['embedmap']
+
 
 class Metric:
     """Class wrapper for metrics, used to precompute parts for efficiency."""
@@ -11,11 +17,10 @@ class Metric:
         self.indices: tuple[np.ndarray] = tuple(rgbij[..., 3:5].T)
         self.value = self.compute()
 
-    def compute(pixels: np.ndarray):
+    def compute(self):
         pass
 
-    @staticmethod
-    def compare(a: Metric, b: Metric):
+    def compare(self, other: Metric):
         pass
 
 
@@ -23,8 +28,16 @@ class AverageColor(Metric):
     def compute(self):
         return np.mean(self.pixels, axis=0)
 
-    def compare(a, b):
-        return sum(np.square(a.value - b.value))
+    def compare(self, other):
+        return sum(np.square(self.value - other.value))
+
+
+class ColorFeatures(Metric):
+    def compute(self):
+        pass
+
+    def compare(self, other: Metric):
+        pass
 
 
 class Wasserstein(Metric):
@@ -33,9 +46,9 @@ class Wasserstein(Metric):
         r, g, b = self.color_histograms()
         return (r / n, g / n, b / n)
 
-    def compare(a, b):
-        red_1, green_1, blue_1 = a.value
-        red_2, green_2, blue_2 = b.value
+    def compare(self, other):
+        red_1, green_1, blue_1 = self.value
+        red_2, green_2, blue_2 = other.value
         # create and normalize the distance matrix
         distance = ot.dist(np.arange(0.0, 256.0)[..., np.newaxis])
         distance /= np.max(distance)
