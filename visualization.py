@@ -4,6 +4,33 @@ from PIL import Image
 
 import numpy as np
 
+
+def show_features(features: np.ndarray):
+    """Given a mapping (i, j) -> feature vector, create a visualization representative of the regions identified by the feature vectors."""
+    # reshape to just be a list of feature row-vectors
+    width, height, depth = np.shape(features)
+    vectors = np.reshape(features, (width * height, depth))
+    # z-score and create covariance
+    mu = np.mean(vectors, axis=0)
+    sigma = np.std(vectors, axis=0)
+    standardized = (vectors - mu) / sigma
+    covariance = np.cov(standardized.T)
+    # make basis of 3 most significant eigenvectors
+    eigenstuffs = np.linalg.eig(covariance)
+    # argsort is ascending but we want descending
+    order = np.flip(np.argsort(eigenstuffs[0]))
+    eigenvectors = eigenstuffs[1][..., order]
+    basis = eigenvectors[..., :3]
+    # project features onto basis
+    projected = vectors @ basis
+    # normalize to within [0, 1]
+    projected -= np.min(projected, axis=0)
+    projected /= np.max(projected, axis=0)
+    # turn into 8-bit image
+    image = np.reshape(projected, (width, height, 3))
+    return (image * 255).astype(np.uint8)
+
+
 def show_regions(original: np.ndarray, labels: np.ndarray):
     """Visualize the label-defined regions of an 8-bit RGB(A) image by setting a regions color to the average color of pixels in the region."""
     visual = np.zeros_like(original)
@@ -80,10 +107,16 @@ def show_constraints(original: np.ndarray, constraints: list[int, int], length=2
     return visual
 
 
-def show(image: np.ndarray, *, regions=None, constraints=None) -> None:
+def show(image: np.ndarray, *, regions=None, features=None, constraints=None) -> None:
     result = image
     if regions is not None:
         result = show_regions(result, regions)
+    if features is not None:
+        # controls visibility of the features
+        alpha = 0.75
+        result = result * (1 - alpha) + show_features(features) * alpha
+        # cast back to integer
+        result = result.astype(np.uint8)
     if constraints is not None:
         result = show_constraints(result, constraints)
     Image.fromarray(result).show()
