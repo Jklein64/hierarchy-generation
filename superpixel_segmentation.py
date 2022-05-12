@@ -8,7 +8,6 @@ from skimage.segmentation import slic
 from PIL import Image
 
 import numpy as np
-import scipy.io as sio
 
 from metrics import Metric, AverageColor
 from visualization import show
@@ -32,8 +31,6 @@ def main():
     # original is an 8-bit rgb(a) image, possibly with opacity;
     # transparent if within bounding box but outside segment
     original = np.array(Image.open(args.image))
-    # load features for the image.  Make sure to make them first!
-    features = sio.loadmat(f"features/Feat/{args.image[:args.image.rfind('.')]}.mat")['embedmap']
 
     # show the original image
     show(original, constraints=constraints)
@@ -45,7 +42,7 @@ def main():
         mask=np.shape(original)[-1] == 4 and original[..., -1] == 0)
 
     # show the initial superpixel segmentation
-    show(original, regions=labels, constraints=constraints, features=features)
+    show(original, regions=labels, constraints=constraints)
     
     # create dense distances matrix and merge based on optimized delta
     distances = distances_matrix(original, labels, metric=AverageColor)

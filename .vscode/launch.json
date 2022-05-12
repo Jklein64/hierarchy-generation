@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "internalConsole",
             "args": [
-                "input/Nesi.png",
+                "input/nesi.png",
                 "-c",
                 "275",
                 "250",
