@@ -10,7 +10,7 @@ from PIL import Image
 import numpy as np
 
 from metrics import Metric, AverageColor, ColorFeatures
-from visualization import show
+from visualization import show, save
 
 
 def main():
@@ -33,7 +33,7 @@ def main():
     original = np.array(Image.open(args.image))
 
     # show the original image
-    show(original, constraints=constraints)
+    # show(original, constraints=constraints)
 
     labels = np.ma.array(
         # labels maps pixel location to a superpixel label
@@ -42,39 +42,43 @@ def main():
         mask=np.shape(original)[-1] == 4 and original[..., -1] == 0)
 
     # show the initial superpixel segmentation
-    show(original, regions=labels, constraints=constraints)
+    # show(original, regions=labels, constraints=constraints)
     
-    # create dense distances matrix and merge based on optimized delta
-    distances = distances_matrix(original, labels, metric=ColorFeatures)
-    merged = constrained_division(labels, np.zeros_like(labels), distances, (0, 1), constraints)
+    for gamma in np.linspace(0, 1, num=50):
+        # set the gamma value
+        ColorFeatures.gamma = gamma
 
-    # show the image after applying the first two constraints
-    show(original, regions=merged, constraints=constraints)
+        # create dense distances matrix and merge based on optimized delta
+        distances = distances_matrix(original, labels, metric=ColorFeatures)
+        merged = constrained_division(labels, np.zeros_like(labels), distances, (0, 1), constraints)
 
-    divided = np.copy(merged)
-    for c_i, constraint in enumerate(constraints):
-        # ignore the first two constraints
-        if c_i < 2:
-            continue
-        # mask is True where the pixel is shared by this constraint
-        # and the constraint currently governing its pixel
-        shared_constraint = divided[constraint]
-        shared_mask = divided == shared_constraint
-        shared_superpixels = np.ma.array(labels, mask=(~shared_mask))
-        # which superpixels are excluded? make a list of labels
-        removed_superpixels = np.unique(labels[~shared_mask])
-        removed_mask = np.ones_like(distances).astype(bool)
-        for i in removed_superpixels:
-            # remove i'th row and column
-            removed_mask[i, ...] = False
-            removed_mask[..., i] = False
-        d = np.shape(distances)[0] - len(removed_superpixels)
-        # recreate distances matrix after removing those superpixels
-        shared_distances = np.reshape(distances[removed_mask], (d, d))
-        divided = constrained_division(shared_superpixels, divided, shared_distances, (shared_constraint, c_i), constraints)
+        # show the image after applying the first two constraints
+        save(original, regions=merged, constraints=constraints, filename=f"output/nesi-level-1-{gamma:.3f}.png")
 
-        # show the image after addressing the third constraint
-        show(original, regions=divided, constraints=constraints)
+        divided = np.copy(merged)
+        for c_i, constraint in enumerate(constraints):
+            # ignore the first two constraints
+            if c_i < 2:
+                continue
+            # mask is True where the pixel is shared by this constraint
+            # and the constraint currently governing its pixel
+            shared_constraint = divided[constraint]
+            shared_mask = divided == shared_constraint
+            shared_superpixels = np.ma.array(labels, mask=(~shared_mask))
+            # which superpixels are excluded? make a list of labels
+            removed_superpixels = np.unique(labels[~shared_mask])
+            removed_mask = np.ones_like(distances).astype(bool)
+            for i in removed_superpixels:
+                # remove i'th row and column
+                removed_mask[i, ...] = False
+                removed_mask[..., i] = False
+            d = np.shape(distances)[0] - len(removed_superpixels)
+            # recreate distances matrix after removing those superpixels
+            shared_distances = np.reshape(distances[removed_mask], (d, d))
+            divided = constrained_division(shared_superpixels, divided, shared_distances, (shared_constraint, c_i), constraints)
+
+            # show the image after addressing the third constraint
+            save(original, regions=divided, constraints=constraints, filename=f"output/nesi-level-2-{gamma:.3f}.png")
 
     pass
 

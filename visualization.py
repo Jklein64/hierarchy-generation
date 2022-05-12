@@ -88,7 +88,7 @@ def show_constraints(original: np.ndarray, constraints: list[int, int], length=2
     return visual
 
 
-def show(image: np.ndarray, *, regions=None, features=None, constraints=None) -> None:
+def layer_info(image: np.ndarray, *, regions=None, features=None, constraints=None) -> None:
     result = image
     if regions is not None:
         result = show_regions(result, regions)
@@ -100,4 +100,12 @@ def show(image: np.ndarray, *, regions=None, features=None, constraints=None) ->
         result = result.astype(np.uint8)
     if constraints is not None:
         result = show_constraints(result, constraints)
-    Image.fromarray(result).show()
+    return result
+
+
+def show(image: np.ndarray, *, regions=None, features=None, constraints=None):
+    Image.fromarray(layer_info(image, regions=regions, features=features, constraints=constraints)).show()
+
+
+def save(image: np.ndarray, *, regions=None, features=None, constraints=None, filename="output/image.png"):
+    Image.fromarray(layer_info(image, regions=regions, features=features, constraints=constraints)).save(filename)
