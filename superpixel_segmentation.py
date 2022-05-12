@@ -46,7 +46,7 @@ def main():
 
     # show the initial superpixel segmentation
     show(original, regions=labels, constraints=constraints, features=features)
-    exit()
+    
     # create dense distances matrix and merge based on optimized delta
     distances = distances_matrix(original, labels, metric=AverageColor)
     merged = constrained_division(labels, np.zeros_like(labels), distances, (0, 1), constraints)
