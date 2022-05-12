@@ -6,8 +6,9 @@ import ot
 class Metric:
     """Class wrapper for metrics, used to precompute parts for efficiency."""
 
-    def __init__(self, pixels: np.ndarray) -> None:
-        self.pixels = pixels
+    def __init__(self, rgbij: np.ndarray) -> None:
+        self.pixels: np.ndarray = rgbij[..., 0:3]
+        self.indices: tuple[np.ndarray] = tuple(rgbij[..., 3:5].T)
         self.value = self.compute()
 
     def compute(pixels: np.ndarray):

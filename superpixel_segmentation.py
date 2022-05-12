@@ -152,8 +152,14 @@ def distances_matrix(original: np.ndarray, superpixels: np.ndarray, metric: Metr
     """Create a matrix with the metric-based distances between every pair of the given superpixels implied by the original and labelled images."""
     # store list of valid superpixel labels
     unique_labels = np.ma.compressed(np.ma.unique(superpixels))
-    # precompute part of the metric to avoid recomputing certain things
-    precomputed = [metric(original[superpixels == label]) for label in unique_labels]
+    # bundle index information with rgb
+    precomputed = []
+    for label in unique_labels:
+        selection = superpixels == label
+        i, j = np.where(selection)
+        rgb = original[selection]
+        rgbij = np.column_stack((rgb, i, j))
+        precomputed.append(metric(rgbij))
     # create n-by-n matrix to compare distances between n superpixels
     distances = np.zeros((len(unique_labels), len(unique_labels)))
     # distance is symmetric, so only compare each pair once (below diagonal)
