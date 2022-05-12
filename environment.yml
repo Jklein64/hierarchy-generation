@@ -2,17 +2,13 @@ name: hierarchy-generation
 channels:
   - conda-forge
   - defaults
-  - pytorch
 dependencies:
   - python=3.7
-  - pytorch=1.8.0
-  - torchvision=0.9.0
   - scipy=1.1.0
   - scikit-image=0.18.3
   # profiling
   - snakeviz=2.0.1
   - pip
   - pip:
-      - mmcv-full==1.4.5 -f https://download.openmmlab.com/mmcv/dist/cpu/torch1.8.0/index.html
-      - mmsegmentation
+      # Wasserstein
       - pot==0.8.1
