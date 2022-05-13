@@ -11,16 +11,16 @@
             "program": "${file}",
             "console": "internalConsole",
             "args": [
-                "input/coffee.png",
+                "input/nesi.png",
                 "-c",
-                "120",
-                "400",
+                "520",
+                "500",
                 "-c",
-                "160",
-                "160",
+                "275",
+                "250",
                 "-c",
-                "110",
-                "220",
+                "300",
+                "650",
             ]
         }
     ]

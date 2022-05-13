@@ -36,7 +36,7 @@ def pca(features: np.ndarray, dim = None):
 
 
 # change this when changing the input image
-features: np.ndarray = sio.loadmat("features/output/coffee.mat")['embedmap']
+features: np.ndarray = sio.loadmat("features/output/nesi.mat")['embedmap']
 # project features to most significant dimensions
 features = pca(features)
 
@@ -128,4 +128,9 @@ class Wasserstein(Metric):
         return histograms
 
 
-# make something semantic??
+class CentroidDistance(Metric):
+    def compute(self):
+        return np.mean(np.transpose(self.indices), axis=0)
+
+    def compare(self, other: Metric):
+        return np.linalg.norm(self.value - other.value)
