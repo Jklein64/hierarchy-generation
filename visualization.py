@@ -14,9 +14,12 @@ def show_features(features: np.ndarray):
 
 def show_regions(original: np.ndarray, labels: np.ndarray):
     """Visualize the label-defined regions of an 8-bit RGB(A) image by setting a regions color to the average color of pixels in the region."""
+    # add opacity field, if it would be necessary
+    if np.shape(original)[-1] == 3 and -1 in labels:
+        original = np.insert(original, 3, np.where(labels >= 0, 255, 0), axis=-1)
     visual = np.zeros_like(original)
     # set each non-masked region to the average color
-    for label in np.ma.compressed(np.ma.unique(labels)):
+    for label in np.unique(labels[labels >= 0]):
         region = labels == label
         # axis=0 averages rgb(a) channels separately
         average = np.mean(original[region], axis=0).astype(int)
@@ -98,8 +101,8 @@ def layer_info(image: np.ndarray, *, regions=None, features=None, constraints=No
         feat = show_features(features)
         # make sure they have the same shape
         if np.shape(result) != np.shape(feat):
-            # insert 255 at index 2 for each entry
-            feat = np.insert(feat, 2, 255, axis=-1)
+            # insert 255 at index 3 for each entry
+            feat = np.insert(feat, 3, 255, axis=-1)
         result = result * (1 - alpha) + feat * alpha
         # cast back to integer
         result = result.astype(np.uint8)

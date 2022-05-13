@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Callable
 
 from argparse import ArgumentParser
 
@@ -9,7 +8,7 @@ from PIL import Image
 
 import numpy as np
 
-from metrics import Metric, ColorFeatures
+from metrics import Metric, ColorFeatures, AverageColor
 from visualization import show
 
 
@@ -35,18 +34,22 @@ def main():
     # show the original image
     show(original, constraints=constraints)
 
-    labels = np.ma.array(
-        # labels maps pixel location to a superpixel label
-        slic(original[..., 0:3] / 255, 750, start_label=0),
-        # don't mask anything if no alpha channel, otherwise mask transparent pixels
-        mask=np.shape(original)[-1] == 4 and original[..., -1] == 0)
+    masked = (
+        # mask transparent pixels if there's an alpha channel
+        original[..., -1] == 0 if np.shape(original)[-1] == 4 
+        # otherwise don't mask anything
+        else np.zeros(np.shape(original)[:2], dtype=int))
+    # each superpixel should have around 2,000 pixels
+    n = len(np.transpose(np.where(~masked))) // 2000
+    # labels maps pixel location to a superpixel label
+    labels = np.array(slic(original[..., 0:3] / 255, n, start_label=0, mask=~masked))
 
     # show the initial superpixel segmentation
     show(original, regions=labels, constraints=constraints)
     
     # create dense distances matrix and merge based on optimized delta
     distances = distances_matrix(original, labels, metric=ColorFeatures)
-    merged = constrained_division(labels, np.zeros_like(labels), distances, (0, 1), constraints)
+    merged = constrained_division(labels, np.where(labels < 0, -1, 0), distances, (0, 1), constraints)
 
     # show the image after applying the first two constraints
     show(original, regions=merged, constraints=constraints)
@@ -60,9 +63,11 @@ def main():
         # and the constraint currently governing its pixel
         shared_constraint = divided[constraint]
         shared_mask = divided == shared_constraint
-        shared_superpixels = np.ma.array(labels, mask=(~shared_mask))
+        shared_superpixels = np.copy(labels)
+        shared_superpixels[~shared_mask] = -1
         # which superpixels are excluded? make a list of labels
         removed_superpixels = np.unique(labels[~shared_mask])
+        removed_superpixels = removed_superpixels[removed_superpixels >= 0]
         removed_mask = np.ones_like(distances).astype(bool)
         for i in removed_superpixels:
             # remove i'th row and column
@@ -77,6 +82,9 @@ def main():
         show(original, regions=divided, constraints=constraints)
 
     pass
+
+
+# IDEA what if instead of actually relabelling the image each time, I just look for the constraint locations?
 
 
 def constrained_division(superpixels: np.ndarray, merged_nonlocal: np.ndarray, distances: np.ndarray, c_i: tuple[int, int], constraints: list):
@@ -110,7 +118,7 @@ def constrained_division(superpixels: np.ndarray, merged_nonlocal: np.ndarray, d
         b = merged[new_constraint]
     # assign regions not containing any constraint to the older one
     constraint_labels = merged[tuple(np.transpose(constraints))]
-    for label in np.ma.compressed(np.unique(merged)): 
+    for label in np.unique(merged[merged >= 0]): 
         if label not in constraint_labels:
             # replace label with less recent constraint
             merged[merged == label] = a
@@ -121,13 +129,13 @@ def constrained_division(superpixels: np.ndarray, merged_nonlocal: np.ndarray, d
     for i, c in enumerate(constraints[:np.max(merged_nonlocal) + 2]):
         label = merged[c]
         # ignore masked labels
-        if label is not np.ma.masked:
+        if label >= 0:
             conditions.append(merged == label)
             replacements.append(i)
     # use -1 as "masked" since masked arrays get overridden
-    merged = np.select(conditions, replacements, default=-1)
+    merged = np.select(conditions, replacements, default=-2)
     # fill masked values with previous constraint
-    merged[merged == -1] = merged_nonlocal[merged == -1]
+    merged[merged == -2] = merged_nonlocal[merged == -2]
     return merged
 
 
@@ -136,10 +144,12 @@ def connected_within_threshold(superpixels: np.ndarray, distances: np.ndarray, d
     # merged_labels maps index of node to a label for each newly merged group
     n, merged_labels = connected_components(distances < delta, directed=False)
     # superpixel_labels gives the label for the n'th superpixel
-    superpixel_labels = np.unique(np.ma.compressed(superpixels))
+    superpixel_labels = np.unique(superpixels)
+    superpixel_labels = superpixel_labels[superpixel_labels >= 0]
     # create labelled image shaped like superpixels but masking everything
-    labels = np.ma.array(np.zeros_like(superpixels), mask=True)
+    labels = np.ones_like(superpixels) * -1
     # set labels for each pixel for each superpixel
+    # FIXME this takes a while when run around 25x
     for index, label in enumerate(merged_labels):
         labels[superpixels == superpixel_labels[index]] = label
     return labels
@@ -148,7 +158,8 @@ def connected_within_threshold(superpixels: np.ndarray, distances: np.ndarray, d
 def distances_matrix(original: np.ndarray, superpixels: np.ndarray, metric: Metric) -> np.ndarray:
     """Create a matrix with the metric-based distances between every pair of the given superpixels implied by the original and labelled images."""
     # store list of valid superpixel labels
-    unique_labels = np.ma.compressed(np.ma.unique(superpixels))
+    unique_labels = np.unique(superpixels)
+    unique_labels = unique_labels[unique_labels >= 0]
     # bundle index information with rgb
     precomputed = []
     for label in unique_labels:
