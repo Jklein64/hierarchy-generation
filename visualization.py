@@ -95,7 +95,12 @@ def layer_info(image: np.ndarray, *, regions=None, features=None, constraints=No
     if features is not None:
         # controls visibility of the features
         alpha = 0.75
-        result = result * (1 - alpha) + show_features(features) * alpha
+        feat = show_features(features)
+        # make sure they have the same shape
+        if np.shape(result) != np.shape(feat):
+            # insert 255 at index 2 for each entry
+            feat = np.insert(feat, 2, 255, axis=-1)
+        result = result * (1 - alpha) + feat * alpha
         # cast back to integer
         result = result.astype(np.uint8)
     if constraints is not None:

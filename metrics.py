@@ -36,8 +36,8 @@ def pca(features: np.ndarray, dim = None):
 
 
 # change this when changing the input image
-features: np.ndarray = sio.loadmat("features/Feat/nesi.mat")['embedmap']
-# project features to 3D
+features: np.ndarray = sio.loadmat("features/output/coffee.mat")['embedmap']
+# project features to most significant dimensions
 features = pca(features)
 
 
