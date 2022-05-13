@@ -38,7 +38,7 @@ def pca(features: np.ndarray, dim = None):
 # change this when changing the input image
 features: np.ndarray = sio.loadmat("features/output/nesi.mat")['embedmap']
 # project features to most significant dimensions
-features = pca(features)
+features_pca = pca(features)
 
 
 class Metric:
@@ -67,7 +67,7 @@ class AverageColor(Metric):
 
 class FeaturesPCA(Metric):
     def compute(self):
-        return np.mean(features[self.indices], axis=0)
+        return np.mean(features_pca[self.indices], axis=0)
 
     def compare(self, other: Metric):
         return np.linalg.norm(self.value - other.value)
