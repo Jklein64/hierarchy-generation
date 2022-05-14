@@ -12,3 +12,6 @@ dependencies:
   - pip:
       # Wasserstein
       - pot==0.8.1
+      # guided filter
+      - opencv-python
+      - opencv-contrib-python
