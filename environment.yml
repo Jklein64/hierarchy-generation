@@ -6,6 +6,7 @@ dependencies:
   - python=3.7
   - scipy=1.1.0
   - scikit-image=0.18.3
+  - pillow
   # profiling
   - snakeviz=2.0.1
   - pip
