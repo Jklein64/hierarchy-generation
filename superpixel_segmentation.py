@@ -135,6 +135,11 @@ def main():
 
     print(hierarchy)
 
+    final_labels = divided[-1]
+    layers = [((final_labels == i) * 255).astype(np.uint8) for i in np.unique(final_labels)]
+    guided = cv2.ximgproc.guidedFilter(original, np.stack(layers, axis=-1), GUIDED_FILTER_RADIUS, GUIDED_FILTER_EPSILON)
+    guided_layers = [guided[..., i] for i in np.unique(final_labels)]
+
     pass
 
 
