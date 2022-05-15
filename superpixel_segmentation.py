@@ -101,7 +101,7 @@ def main():
     pass
 
 
-def constrained_division(superpixels: np.ndarray, merged_nonlocal: np.ndarray, distances: np.ndarray, c_i: tuple[int, int], constraints: list):
+def constrained_division(superpixels: np.ndarray, previous: np.ndarray, distances: np.ndarray, c_i: tuple[int, int], constraints: list):
     """Given a possibly-transparent image's masked superpixel segmentation, the previous assignment of constraints, the pairwise distance between those superpixels (after RAG merging), and two indices into the given constraints list, divide the image into additional semantic regions such that each constraint is in its own region.  The labels returned from this method correspond to the given constraints."""
     old_constraint = constraints[c_i[0]]
     new_constraint = constraints[c_i[1]]
@@ -141,7 +141,7 @@ def constrained_division(superpixels: np.ndarray, merged_nonlocal: np.ndarray, d
     conditions = []
     replacements = []
     # +1 to include end of range, +1 again to include new constraint
-    for i, c in enumerate(constraints[:np.max(merged_nonlocal) + 2]):
+    for i, c in enumerate(constraints[:np.max(previous) + 2]):
         label = merged[c]
         # ignore masked labels
         if label >= 0:
@@ -150,7 +150,7 @@ def constrained_division(superpixels: np.ndarray, merged_nonlocal: np.ndarray, d
     # use -1 as "masked" since masked arrays get overridden
     merged = np.select(conditions, replacements, default=-2)
     # fill masked values with previous constraint
-    merged[merged == -2] = merged_nonlocal[merged == -2]
+    merged[merged == -2] = previous[merged == -2]
     return merged
 
 
