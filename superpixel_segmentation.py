@@ -5,11 +5,18 @@ from argparse import ArgumentParser
 from scipy.sparse.csgraph import connected_components
 from skimage.segmentation import slic
 from PIL import Image
+from cv2 import cv2
 
 import numpy as np
 
-from metrics import Metric, ColorFeatures, AverageColor
+from metrics import Metric, ColorFeatures
 from visualization import show
+
+
+# determined through experimentation
+GUIDED_FILTER_RADIUS = 30
+# taken from example on GitHub
+GUIDED_FILTER_EPSILON = 1e-6 * 255 ** 2
 
 
 def main():
@@ -77,10 +84,19 @@ def main():
         d = len(keep_labels)
         # recreate distances matrix after removing those superpixels
         shared_distances = np.reshape(distances[yeet_mask], (d, d))
+        # TODO use the tuple passed below to help make the hierarchy
         divided = constrained_division(shared_superpixels, divided, shared_distances, (shared_constraint, c_i), constraints)
 
         # show the image after addressing the third constraint
         show(original, regions=divided, constraints=constraints)
+
+    # show the segments after applying a guided filter
+    for label in np.unique(divided[divided >= 0]):
+        # cv2 doesn't like boolean arrays
+        mask = (divided == label).astype(np.uint8) * 255
+        refined = cv2.ximgproc.guidedFilter(original, mask, GUIDED_FILTER_RADIUS, GUIDED_FILTER_EPSILON)
+        # use refined mask value as alpha channel on original image
+        show(np.insert(original[..., 0:3], 3, refined, axis=-1))
 
     pass
 
