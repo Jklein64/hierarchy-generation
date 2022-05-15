@@ -4,6 +4,7 @@ from argparse import ArgumentParser
 
 from scipy.sparse.csgraph import connected_components
 from skimage.segmentation import slic
+from collections import deque
 from PIL import Image
 from cv2 import cv2
 
@@ -17,6 +18,8 @@ from visualization import show
 GUIDED_FILTER_RADIUS = 30
 # taken from example on GitHub
 GUIDED_FILTER_EPSILON = 1e-6 * 255 ** 2
+# picked randomly and it happened to work
+DELTA_OPTIMIZATION_THRESHOLD = 0.001
 
 
 def main():
@@ -56,20 +59,27 @@ def main():
     
     # create dense distances matrix and merge based on optimized delta
     distances = distances_matrix(original, labels, metric=ColorFeatures)
-    merged = constrained_division(labels, np.where(labels < 0, -1, 0), distances, (0, 1), constraints)
+
+    # store constraint assignment at each level
+    divided = list()
+
+    # compare between constraints 0 and 1, creating the first level of the hierarchy
+    divided.append(constrained_division(labels, np.where(labels < 0, -1, 0), distances, (0, 1), constraints))
+
+    # create root node and first level
+    hierarchy = { 0: None, 1: None }
 
     # show the image after applying the first two constraints
-    show(original, regions=merged, constraints=constraints)
+    show(original, regions=divided[0], constraints=constraints)
 
-    divided = np.copy(merged)
-    for c_i, constraint in enumerate(constraints):
+    for new_constraint, location in enumerate(constraints):
         # ignore the first two constraints
-        if c_i < 2:
+        if new_constraint < 2:
             continue
         # mask is True where the pixel is shared by this constraint
-        # and the constraint currently governing its pixel
-        shared_constraint = divided[constraint]
-        shared_mask = divided == shared_constraint
+        # and the most specific constraint currently governing its pixel
+        shared_constraint = divided[-1][location]
+        shared_mask = divided[-1] == shared_constraint
         shared_superpixels = np.copy(labels)
         shared_superpixels[~shared_mask] = -1
         # remove non-shared ones from distances
@@ -85,18 +95,45 @@ def main():
         # recreate distances matrix after removing those superpixels
         shared_distances = np.reshape(distances[yeet_mask], (d, d))
         # TODO use the tuple passed below to help make the hierarchy
-        divided = constrained_division(shared_superpixels, divided, shared_distances, (shared_constraint, c_i), constraints)
+        divided.append(constrained_division(
+            superpixels=shared_superpixels, 
+            previous=divided[-1], 
+            distances=shared_distances, 
+            c_i=(shared_constraint, new_constraint), 
+            constraints=constraints))
+        # update hierarchy with BFS
+        queue = deque([ [0] ])
+        while len(queue) > 0:
+            level = [queue.popleft() for _ in range(len(queue))]
+            for node in level:
+                # wrap so view[0] is root
+                view = [hierarchy]
+                for i in node:
+                    view = view[i]
+                if shared_constraint in view:
+                    if view[shared_constraint] is None:
+                        view[shared_constraint] = dict()
+                    # updating view updates hierarchy
+                    # because python dicts are cool
+                    view[shared_constraint].update({
+                        shared_constraint: None,
+                        new_constraint: None})
+                    break
+                # list gets actual values instead of view
+                queue.extend(list(view[i].values()))
 
         # show the image after addressing the third constraint
-        show(original, regions=divided, constraints=constraints)
+        show(original, regions=divided[-1], constraints=constraints)
 
     # show the segments after applying a guided filter
-    for label in np.unique(divided[divided >= 0]):
+    for label in np.unique(divided[-1][divided[-1] >= 0]):
         # cv2 doesn't like boolean arrays
-        mask = (divided == label).astype(np.uint8) * 255
+        mask = (divided[-1] == label).astype(np.uint8) * 255
         refined = cv2.ximgproc.guidedFilter(original, mask, GUIDED_FILTER_RADIUS, GUIDED_FILTER_EPSILON)
         # use refined mask value as alpha channel on original image
         show(np.insert(original[..., 0:3], 3, refined, axis=-1))
+
+    print(hierarchy)
 
     pass
 
@@ -115,7 +152,7 @@ def constrained_division(superpixels: np.ndarray, previous: np.ndarray, distance
     high = np.max(distances)
     delta = (high + low) / 2
     # FIXME justify threshold choice
-    threshold = high * 0.001
+    threshold = high * DELTA_OPTIMIZATION_THRESHOLD
     # find which merged superpixel each constraint would belong to
     a, b = constraints_within_threshold(constraint_labels, distances < delta)
     # a == b so that it always separates the constraints
