@@ -2,6 +2,33 @@
 
 This repository is for code for the automatic generation of a hierarchical segmentation of an image, which is a portion of my research group's project. The general idea is that superpixels can be clustered to form semantic regions which separate constraints.
 
+# Setup
+
+- Put images of interest in the `input/` directory. Due to limitations in the feature vector generation, the images must be `.png` files.
+
+- Install [anaconda](https://www.anaconda.com/products/individual)/[miniconda](https://docs.conda.io/en/latest/miniconda.html), then create the conda environment for `hierarchy-generation`.
+
+  ```bash
+  conda env create -f environment.yml
+  ```
+
+- Change directory into the feature generation submodule, and create and activate the conda environment for `sss`. The feature generation code is from the paper [Semantic Soft Segmentation](http://yaksoy.github.io/sss/). Run the `.sh` file in that directory to generate the feature vectors, which are stored as `.mat` files in `features/output/{filename}.mat`.
+
+  ```bash
+  cd features
+  conda env create -f environment.yml
+  conda activate sss
+  sh run_extract_feat.sh
+  ```
+
+- Change directory back to the root and activate the `hierarchy-generation` conda environment, then run the superpixel segmentation code. The CLI takes an input image and failed constraint locations in (row, column) order. See the docstring (`-h` or `--help`) for more info.
+
+  ```bash
+  cd ..
+  cond activate hierarchy-generation
+  python superpixel-segmentation.py "input/image.png" -c 250 850 -c 580 360 -c 160 470 -c 400 400
+  ```
+
 ## Motivation
 
 The image editing algorithm we have developed, _LoCoPalettes_, takes user constraints as input to recolor an image with palette-based image editing.
@@ -68,19 +95,4 @@ While the segmentation worked well in that example, it struggled to separate the
 | :--------------------------------: | :-----------------------------: | :-----------------------------: |
 |           original image           |       after local merging       |    final (failed) assignment    |
 
-_currently, I am experimenting with variations on the distance metric, such as [CIEDE200 distance](https://en.wikipedia.org/wiki/Color_difference#CIEDE2000), and general incorporation of a semantic identification or segmentation algorithm to take feature vectors into account when comparing superpixels._
-
-# Setup
-
-- Install [anaconda](https://www.anaconda.com/products/individual)/[miniconda](https://docs.conda.io/en/latest/miniconda.html), then create and activate the conda environment.
-
-  ```bash
-  conda env create -f environment.yml
-  conda activate hierarchy-generation
-  ```
-
-- Run the python script. See the docstring for more info.
-
-  ```bash
-  python hierarchy-generation.py -h
-  ```
+_Note: this is out of date. currently, I am experimenting with variations on the distance metric, such as [CIEDE200 distance](https://en.wikipedia.org/wiki/Color_difference#CIEDE2000), and general incorporation of a semantic identification or segmentation algorithm to take feature vectors into account when comparing superpixels._
