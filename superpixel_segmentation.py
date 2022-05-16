@@ -8,10 +8,12 @@ from collections import deque
 from PIL import Image
 from cv2 import cv2
 
+import scipy.io as sio
 import numpy as np
+import json
 
-from metrics import Metric, ColorFeatures
-from visualization import show
+from metrics import Metric, ColorFeatures, FeaturesPCA
+from visualization import save, show
 
 
 # determined through experimentation
@@ -40,37 +42,49 @@ def main():
     # original is an 8-bit rgb(a) image, possibly with opacity;
     # transparent if within bounding box but outside segment
     original = np.array(Image.open(args.image))
+    # load and set features for the image
+    image_name = args.image[args.image.rfind("/")+1:args.image.rfind(".")]
+    features = sio.loadmat(f"features/output/{image_name}.mat")['embedmap']
+    
+    labels, distances = precomputation(original, features)
+    hierarchy, divided = generate_hierarchy(labels, distances, constraints)
 
-    # show the original image
-    show(original, constraints=constraints)
+    # Smooth the segment with the most recent constraint
+    mask = (divided == divided[constraints[-1]]).astype(np.uint8) * 255
+    guided = cv2.ximgproc.guidedFilter(original, mask, GUIDED_FILTER_RADIUS, GUIDED_FILTER_EPSILON)
 
+    # export files
+    save(guided, filename="output/mask.png")
+    np.save("output/regions", divided)
+    with open("output/hierarchy.json", "w") as file:
+        json.dump(hierarchy, file)
+
+    pass
+
+
+def precomputation(image: np.ndarray, features: np.ndarray):
+    """Create as much information as possible which can be persisted across hierarchy generations to save time.  This function doesn't depend on the constraints, so it can be run when an image is loaded into the GUI and then its values can be used later.  Features come from running the code in `features/`."""
     masked = (
         # mask transparent pixels if there's an alpha channel
-        original[..., -1] == 0 if np.shape(original)[-1] == 4 
+        image[..., -1] == 0 if np.shape(image)[-1] == 4 
         # otherwise don't mask anything
-        else np.zeros(np.shape(original)[:2], dtype=int))
+        else np.zeros(np.shape(image)[:2], dtype=int))
     # each superpixel should have around 1,000 pixels
     n = len(np.transpose(np.where(~masked))) // 1000
     # labels maps pixel location to a superpixel label
-    labels = np.array(slic(original[..., 0:3] / 255, n, start_label=0, mask=~masked))
+    labels = np.array(slic(image[..., 0:3] / 255, n, start_label=0, mask=~masked))
+    # create distances matrix comparing every pair of superpixels
+    FeaturesPCA.set_features(features)
+    distances = distances_matrix(image, labels, metric=ColorFeatures)
+    return labels, distances
 
-    # show the initial superpixel segmentation
-    show(original, regions=labels, constraints=constraints)
-    
-    # create dense distances matrix and merge based on optimized delta
-    distances = distances_matrix(original, labels, metric=ColorFeatures)
 
-    # store constraint assignment at each level
-    divided = list()
-
-    # compare between constraints 0 and 1, creating the first level of the hierarchy
-    divided.append(constrained_division(labels, np.where(labels < 0, -1, 0), distances, (0, 1), constraints))
-
-    # create root node and first level
+def generate_hierarchy(superpixels: np.ndarray, distances: np.ndarray, constraints: list[tuple[int, int]]):
+    """Given the initial superpixels, precomputed distance matrix, and constraint locations sorted in order from least recently changed to modify its region to most recently changed, generate and return a hierarchy.  This function returns a nested Python dict `hierarchy` and a numpy array `divided`.  The array maps each pixel to its region's constraint, and the hierarchy describes how the regions merge together.  A key mapping to `None` is a leaf node.  Otherwise, key `k` maps to a dict which describes how the region belonging to `k` is divided with the addition of another constraint.  Note that `divided == k` yields a binary mask for the part of `k` which doesn't belong to any other constraints after accounting for all of them."""
+    # create first level; root is implied
     hierarchy = { 0: None, 1: None }
-
-    # show the image after applying the first two constraints
-    show(original, regions=divided[0], constraints=constraints)
+    # compare between constraints 0 and 1, creating the first level of the hierarchy
+    divided = [constrained_division(superpixels, np.where(superpixels < 0, -1, 0), distances, (0, 1), constraints)]
 
     for new_constraint, location in enumerate(constraints):
         # ignore the first two constraints
@@ -80,12 +94,12 @@ def main():
         # and the most specific constraint currently governing its pixel
         shared_constraint = divided[-1][location]
         shared_mask = divided[-1] == shared_constraint
-        shared_superpixels = np.copy(labels)
+        shared_superpixels = np.copy(superpixels)
         shared_superpixels[~shared_mask] = -1
         # remove non-shared ones from distances
         keep_labels = np.unique(shared_superpixels[shared_superpixels >= 0])
         # use set subtraction to maintain invariant with d
-        yeet_labels = set(np.unique(labels[labels >= 0])) - set(keep_labels)
+        yeet_labels = set(np.unique(superpixels[superpixels >= 0])) - set(keep_labels)
         yeet_mask = np.ones_like(distances).astype(bool)
         for i in yeet_labels:
             # remove i'th row and column
@@ -94,7 +108,6 @@ def main():
         d = len(keep_labels)
         # recreate distances matrix after removing those superpixels
         shared_distances = np.reshape(distances[yeet_mask], (d, d))
-        # TODO use the tuple passed below to help make the hierarchy
         divided.append(constrained_division(
             superpixels=shared_superpixels, 
             previous=divided[-1], 
@@ -116,31 +129,12 @@ def main():
                     # updating view updates hierarchy
                     # because python dicts are cool
                     view[shared_constraint].update({
-                        shared_constraint: None,
-                        new_constraint: None})
+                        int(shared_constraint): None,
+                        int(new_constraint): None})
                     break
                 # list gets actual values instead of view
                 queue.extend(list(view[i].values()))
-
-        # show the image after addressing the third constraint
-        show(original, regions=divided[-1], constraints=constraints)
-
-    # show the segments after applying a guided filter
-    for label in np.unique(divided[-1][divided[-1] >= 0]):
-        # cv2 doesn't like boolean arrays
-        mask = (divided[-1] == label).astype(np.uint8) * 255
-        refined = cv2.ximgproc.guidedFilter(original, mask, GUIDED_FILTER_RADIUS, GUIDED_FILTER_EPSILON)
-        # use refined mask value as alpha channel on original image
-        show(np.insert(original[..., 0:3], 3, refined, axis=-1))
-
-    print(hierarchy)
-
-    final_labels = divided[-1]
-    layers = [((final_labels == i) * 255).astype(np.uint8) for i in np.unique(final_labels)]
-    guided = cv2.ximgproc.guidedFilter(original, np.stack(layers, axis=-1), GUIDED_FILTER_RADIUS, GUIDED_FILTER_EPSILON)
-    guided_layers = [guided[..., i] for i in np.unique(final_labels)]
-
-    pass
+    return hierarchy, divided[-1]
 
 
 def constrained_division(superpixels: np.ndarray, previous: np.ndarray, distances: np.ndarray, c_i: tuple[int, int], constraints: list):
@@ -156,7 +150,6 @@ def constrained_division(superpixels: np.ndarray, previous: np.ndarray, distance
     low = 0
     high = np.max(distances)
     delta = (high + low) / 2
-    # FIXME justify threshold choice
     threshold = high * DELTA_OPTIMIZATION_THRESHOLD
     # find which merged superpixel each constraint would belong to
     a, b = constraints_within_threshold(constraint_labels, distances < delta)
@@ -189,7 +182,7 @@ def constrained_division(superpixels: np.ndarray, previous: np.ndarray, distance
         if label >= 0:
             conditions.append(merged == label)
             replacements.append(i)
-    # use -1 as "masked" since masked arrays get overridden
+    # use -2 to avoid conflicts with -1 as masked
     merged = np.select(conditions, replacements, default=-2)
     # fill masked values with previous constraint
     merged[merged == -2] = previous[merged == -2]
