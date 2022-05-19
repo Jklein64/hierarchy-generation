@@ -11,19 +11,16 @@
             "program": "${file}",
             "console": "internalConsole",
             "args": [
-                "input/image.png",
+                "input/car-kids.png",
                 "-c",
-                "250",
-                "850",
+                "120",
+                "475",
                 "-c",
-                "580",
-                "360",
+                "255",
+                "500",
                 "-c",
                 "160",
-                "470",
-                "-c",
-                "400",
-                "400",
+                "505",
             ]
         }
     ]

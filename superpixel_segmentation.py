@@ -98,6 +98,7 @@ def precomputation(image: np.ndarray, features: np.ndarray):
         else np.zeros(np.shape(image)[:2], dtype=int))
     # each superpixel should have around 1,000 pixels
     n = len(np.transpose(np.where(~masked))) // 1000
+    # n = 750
     # labels maps pixel location to a superpixel label
     labels = np.array(slic(image[..., 0:3] / 255, n, start_label=0, mask=~masked))
     # create distances matrix comparing every pair of superpixels
@@ -164,6 +165,7 @@ def generate_hierarchy(superpixels: np.ndarray, distances: np.ndarray, constrain
                     if view is not None:
                         for child in list(view.keys()):
                             queue.append([*node, child])
+    return hierarchy, divided
 
 
 def constrained_division(superpixels: np.ndarray, previous: np.ndarray, distances: np.ndarray, c_i: tuple[int, int], constraints: list):
