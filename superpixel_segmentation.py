@@ -42,16 +42,26 @@ def main():
     # original is an 8-bit rgb(a) image, possibly with opacity;
     # transparent if within bounding box but outside segment
     original = np.array(Image.open(args.image))
+
+    show(original, constraints=constraints)
+
     # load and set features for the image
     image_name = args.image[args.image.rfind("/")+1:args.image.rfind(".")]
     features = sio.loadmat(f"features/output/{image_name}.mat")['embedmap']
     
     labels, distances = precomputation(original, features)
+
+    show(original, regions=labels, constraints=constraints)
+
     hierarchy, divided = generate_hierarchy(labels, distances, constraints)
 
+    show(original, regions=divided[-1], constraints=constraints)
+
     # Smooth the segment with the most recent constraint
-    mask = (divided == divided[constraints[-1]]).astype(np.uint8) * 255
-    guided = cv2.ximgproc.guidedFilter(original, mask, GUIDED_FILTER_RADIUS, GUIDED_FILTER_EPSILON)
+    for constraint in constraints:
+        mask = (divided[-1] == divided[-1][constraint]).astype(np.uint8) * 255
+        guided = cv2.ximgproc.guidedFilter(original, mask, GUIDED_FILTER_RADIUS, GUIDED_FILTER_EPSILON)
+        show(np.insert(original[..., 0:3], 3, guided, axis=-1))
 
     # export files
     save(guided, filename="output/mask.png")
