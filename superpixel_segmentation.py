@@ -4,6 +4,7 @@ from argparse import ArgumentParser
 
 from scipy.sparse.csgraph import connected_components
 from skimage.segmentation import slic
+from time import perf_counter
 from collections import deque
 from PIL import Image
 from cv2 import cv2
@@ -49,11 +50,19 @@ def main():
     image_name = args.image[args.image.rfind("/")+1:args.image.rfind(".")]
     features = sio.loadmat(f"features/output/{image_name}.mat")['embedmap']
     
+    start = perf_counter()
     labels, distances = precomputation(original, features)
+    end = perf_counter()
+    print(f"took {end-start} seconds to do precomputation")
 
     show(original, regions=labels, constraints=constraints)
 
+    start = perf_counter()
     hierarchy, divided = generate_hierarchy(labels, distances, constraints)
+    end = perf_counter()
+    print(f"took {end-start} seconds to create the hierarchy")
+    print(f"the hierarchy is: {hierarchy}")
+    
 
     show(original, regions=divided[-1], constraints=constraints)
 
