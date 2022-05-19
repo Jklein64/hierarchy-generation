@@ -74,7 +74,7 @@ def main():
 
     # export files
     save(guided, filename="output/mask.png")
-    np.save("output/regions", divided)
+    np.save("output/regions", divided[-1])
     with open("output/hierarchy.json", "w") as file:
         json.dump(hierarchy, file)
 
@@ -99,7 +99,7 @@ def precomputation(image: np.ndarray, features: np.ndarray):
 
 
 def generate_hierarchy(superpixels: np.ndarray, distances: np.ndarray, constraints: list[tuple[int, int]]):
-    """Given the initial superpixels, precomputed distance matrix, and constraint locations sorted in order from least recently changed to modify its region to most recently changed, generate and return a hierarchy.  This function returns a nested Python dict `hierarchy` and a numpy array `divided`.  The array maps each pixel to its region's constraint, and the hierarchy describes how the regions merge together.  A key mapping to `None` is a leaf node.  Otherwise, key `k` maps to a dict which describes how the region belonging to `k` is divided with the addition of another constraint.  Note that `divided == k` yields a binary mask for the part of `k` which doesn't belong to any other constraints after accounting for all of them."""
+    """Given the initial superpixels, precomputed distance matrix, and constraint locations sorted in order from least recently changed to modify its region to most recently changed, generate and return a hierarchy.  This function returns a nested Python dict `hierarchy` and a list of numpy arrays `divided`.  The array maps each pixel to its region's constraint at different levels, and the hierarchy describes how the regions merge together.  A key mapping to `None` is a leaf node.  Otherwise, key `k` maps to a dict which describes how the region belonging to `k` is divided with the addition of another constraint.  Note that `divided[-1] == k` yields a binary mask for the part of `k` which doesn't belong to any other constraints after accounting for all of them."""
     # create first level; root is implied
     hierarchy = { 0: None, 1: None }
     # compare between constraints 0 and 1, creating the first level of the hierarchy
@@ -133,27 +133,29 @@ def generate_hierarchy(superpixels: np.ndarray, distances: np.ndarray, constrain
             distances=shared_distances, 
             c_i=(shared_constraint, new_constraint), 
             constraints=constraints))
+        queue = deque([[0]])
         # update hierarchy with BFS
-        queue = deque([ [0] ])
         while len(queue) > 0:
             level = [queue.popleft() for _ in range(len(queue))]
+            # node is a list of constraints into the hierarchy
             for node in level:
-                # wrap so view[0] is root
-                view = [hierarchy]
-                for i in node:
-                    view = view[i]
-                if shared_constraint in view:
-                    if view[shared_constraint] is None:
-                        view[shared_constraint] = dict()
-                    # updating view updates hierarchy
-                    # because python dicts are cool
-                    view[shared_constraint].update({
-                        int(shared_constraint): None,
-                        int(new_constraint): None})
-                    break
-                # list gets actual values instead of view
-                queue.extend(list(view[i].values()))
-    return hierarchy, divided[-1]
+                if node is not None:
+                    # wrap so view[0] is root
+                    view = [hierarchy]
+                    for i in node:
+                        view = view[i]
+                    if shared_constraint in view:
+                        if view[shared_constraint] is None:
+                            view[shared_constraint] = dict()
+                        # updating view updates hierarchy since
+                        # its a reference to the same object
+                        view[shared_constraint].update({
+                            int(shared_constraint): None,
+                            int(new_constraint): None})
+                        break
+                    if view is not None:
+                        for child in list(view.keys()):
+                            queue.append([*node, child])
 
 
 def constrained_division(superpixels: np.ndarray, previous: np.ndarray, distances: np.ndarray, c_i: tuple[int, int], constraints: list):
