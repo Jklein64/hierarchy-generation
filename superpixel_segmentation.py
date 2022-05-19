@@ -72,6 +72,14 @@ def main():
         guided = cv2.ximgproc.guidedFilter(original, mask, GUIDED_FILTER_RADIUS, GUIDED_FILTER_EPSILON)
         show(np.insert(original[..., 0:3], 3, guided, axis=-1))
 
+    def filter(*constraints):
+        from functools import reduce
+        d = divided[-1]
+        m1 = reduce(lambda a, b: (d == a) | (d == b), constraints, (d == constraints[0]))
+        m2 = m1.astype(np.uint8) * 255
+        guided =  cv2.ximgproc.guidedFilter(original, m2, GUIDED_FILTER_RADIUS, GUIDED_FILTER_EPSILON)
+        return np.insert(original[..., 0:3], 3, guided, axis=-1)
+
     # export files
     save(guided, filename="output/mask.png")
     np.save("output/regions", divided[-1])
