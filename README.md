@@ -21,25 +21,25 @@ This repository is for code for the automatic generation of a hierarchical segme
   sh run_extract_feat.sh
   ```
 
-- Change directory back to the root and activate the `hierarchy-generation` conda environment, then run the superpixel segmentation code. The CLI takes an input image and failed constraint locations in (row, column) order. See the docstring (`-h` or `--help`) for more info.
+- Change directory back to the root and activate the `hierarchy-generation` conda environment, then run the superpixel-based hierarchy generation code. The CLI takes an input image and failed constraint locations in (row, column) order. See the docstring (`-h` or `--help`) for more info.
 
   ```bash
   cd ..
-  cond activate hierarchy-generation
-  python superpixel-segmentation.py "input/image.png" -c 250 850 -c 580 360 -c 160 470 -c 400 400
+  conda activate hierarchy-generation
+  python hierarchy_generation.py "input/image.png" -c 250 850 -c 580 360 -c 160 470 -c 400 400
   ```
 
 ## Motivation
 
-The image editing algorithm we have developed, _LoCoPalettes_, takes user constraints as input to recolor an image with palette-based image editing.
+The image editing algorithm we have developed, _LoCoPalettes_, takes user constraints as input to recolor an image with palette-based image editing. _LoCoPalettes_ relies on a hierarchy of semantic segments in order to allow for edits to increasingly specific regions of the image. The hierarchy is recursive in nature, where each parent node's region is the union of all of the child nodes' regions, so leaf nodes are the smallest and most specific segments, and the root node is the entire image. Note also that the union of all of the nodes in any given level of the tree reconstructs the entire image.
 
-relies on a hierarchy of semantic segments in order to allow for edits to more and more specific regions of the image. The hierarchy is recursive in nature, where each parent node's region is the union of all of the child nodes' regions, so leaf nodes are the smallest and most specific segments, and the root node is the entire image. In all of our examples, we assembled the hierarchy by hand, stitching together and joining segments either from a single run of a neural network-based semantic segmentation algorithm or from manual tracing in Photoshop. However, _LoCoPalettes_ cannot be integrated into any photo editing software until this hierarchy can be generated automatically.
-
-Our general approach to the automatic hierarchy generation process takes advantage of the recursive nature of the hierarchy. By paralleling this with a recursive segmentation, we can create a tree while avoiding the need to piece segments together after each segmentation. It also allows us to lazily segment the image, which will give the user more flexibility in editing, since they aren’t limited to the granularity of the original segmentation.
+In all of the examples in our submission to SIGGRAPH 2022, we assembled the hierarchy by hand, stitching together and joining segments either from a single run of a neural network-based semantic segmentation algorithm or from manual tracing in Photoshop. However, _LoCoPalettes_ cannot be integrated into any photo editing software until this hierarchy can be generated automatically.
 
 ## Story
 
-I began by experimenting with feeding just one segment from the output of a segmentation back in as input. I ran [SETR](https://github.com/open-mmlab/mmsegmentation/blob/master/configs/setr/README.md) on an image, created a unique output image for each identified segment, and then selected one of those and attempted to run SETR on it again. As visible in the images below, the segmentation didn't reveal any more detail. I expected, for example, for the railing to be separated from the wall, since the colors are different, but that didn't happen.
+There are two main approaches to hierarchy generation: A recursive “top-down” approach, where the input is broken it into large semantic segments and then the process is repeated for each segment, and a merging-based “bottom-up” approach, where the input is shattered into many small fragments which are merged together on the way up the hierarchy.
+
+I initially attempted the "top-down" approach, in order to take advantage of the recursive nature of the hierarchy. By paralleling this with a recursive segmentation, I could create a tree while avoiding the need to piece segments together after each segmentation. I began by experimenting with feeding just one segment from the output of a segmentation back in as input. I ran [SETR](https://github.com/open-mmlab/mmsegmentation/blob/master/configs/setr/README.md) on an image, created a unique output image for each identified segment, and then selected one of those and attempted to run SETR on it again. As visible in the images below, the segmentation didn't reveal any more detail. I expected, for example, for the railing to be separated from the wall, since the colors are different, but that didn't happen.
 
 | ![](images/uncropped-initial.png) | ![](images/uncropped-segment.png) |
 | :-------------------------------: | :-------------------------------: |
@@ -73,9 +73,9 @@ The images below demonstrate the result of this delta optimization process. Here
 | :-------------------------------: | :----------------------------------: | :-------------------------------: | :-----------------------------: |
 |          original image           |             superpixels              |          optimized delta          |     merged to show regions      |
 
-In order to address the performance of distance matrix creation, I decided to try merging similar neighboring superpixels before comparing every superpixel to every other one. The first set of comparisons I call "local merging", and the second I call "nonlocal merging". For local merging, I compute each superpixel's neighbors following the same process as [this figure](https://www.researchgate.net/figure/Illustrating-how-to-find-the-spatial-neighbors-of-one-given-superpixel-xi-j-shown-in-a_fig3_303563893), construct a region adjacency graph, and then merge it based on the connected components of the graph cut by a threshold. While the creation of this matrix is still dependent on the number of superpixels, separating the local and nonlocal merging cut down the runtime of the baseball image from around 1 minute to 10 seconds.
+In order to address the performance of distance matrix creation, I decided to try merging similar neighboring superpixels before comparing every superpixel to every other one. The first set of comparisons I call "local merging", and the second I call "nonlocal merging". For local merging, I computed each superpixel's neighbors following the same process as [this figure](https://www.researchgate.net/figure/Illustrating-how-to-find-the-spatial-neighbors-of-one-given-superpixel-xi-j-shown-in-a_fig3_303563893), constructed a region adjacency graph, and then merged it based on the connected components of the graph cut by a threshold. While the creation of this matrix is still dependent on the number of superpixels, separating the local and nonlocal merging cut down the runtime of the baseball image from around 1 minute to 10 seconds.
 
-Below are images demonstrating the effect of different local merging threshold on the same baseball image as the last example. Just as with delta, higher threshold values mean that more superpixels are getting merged together. However, unlike delta, there isn't an obvious way to decide on a threshold, since merging _neighbors_ until the constraints share a region is going to merge too much of the image to be useful for nonlocal merging. Instead, I just picked a value. I initially chose `0.01`, but needed to decrease it to `0.001` once I started segmenting with more superpixels. Choosing a value is something that needs to be justified...
+Below are images demonstrating the effect of different local merging threshold on the same baseball image as the last example. Just as with delta, higher threshold values mean that more superpixels are getting merged together. However, unlike delta, there isn't an obvious way to decide on a threshold, since merging _neighbors_ until the constraints share a region is going to merge too much of the image to be useful for nonlocal merging. Instead, I just picked a value. I initially normalized the local merging distances matrix and then chose `0.01`, but needed to decrease it to `0.001` once I started segmenting with more superpixels. Choosing a value needed to be justified...
 
 | ![](images/rag-0.001.png) | ![](images/rag-0.01.png) | ![](images/rag-0.1.png) |
 | :-----------------------: | :----------------------: | :---------------------: |
@@ -89,10 +89,28 @@ In this example, the user wanted to recolor the curtain to be purple without aff
 | :-----------------------------: | :--------------------------: | :--------------------------: |
 |         original image          |     after local merging      |       final assignment       |
 
-While the segmentation worked well in that example, it struggled to separate the regions in a busier image without any aid from semantic features. In the following example, the constraints would ideally separate the dog and the pumpkin from the rest of the image. However, there is enough variation in lighting within the superpixels corresponding to the dog that they are about as distant from each other as they are from the rest of the image, so the segmentation fails to distinguish.
+While the segmentation worked well in that example, it struggled to separate the regions in a busier image without any aid from semantic features. In the following example, the constraints would ideally separate Nesi, the dog, and the pumpkins from the rest of the image. However, there is enough variation in lighting within the superpixels corresponding to the dog that they are about as distant from each other as they are from the rest of the image, so the segmentation fails to distinguish.
 
 | ![](images/nesi-fail-original.png) | ![](images/nesi-fail-local.png) | ![](images/nesi-fail-final.png) |
 | :--------------------------------: | :-----------------------------: | :-----------------------------: |
 |           original image           |       after local merging       |    final (failed) assignment    |
 
-_Note: this is out of date. currently, I am experimenting with variations on the distance metric, such as [CIEDE200 distance](https://en.wikipedia.org/wiki/Color_difference#CIEDE2000), and general incorporation of a semantic identification or segmentation algorithm to take feature vectors into account when comparing superpixels._
+While writing this code, I discovered a significant performance bottleneck in the distance matrix computation (fixed in [#9ee0953](https://github.com/Jklein64/hierarchy-generation/commit/9ee0953c5bdef883f76c257f9f03bc897f93146a)), which cut its time by a factor of 10 (!). This alleviated the need for local merging, which was slower anyway due to a bug in the neighbor finding step. I ended up removing the local merging step completely.
+
+In order to integrate semantic information, I used the per-pixel feature vectors output from the ResNet-based class-agnostic semantic segmentation from [Semantic Soft Segmentation](http://yaksoy.github.io/papers/TOG18-sss.pdf). The feature vectors were very high (128) dimensional, so I projected them to lower dimensions using PCA. I chose a number of dimensions such that 95% of the variance was explained. Below is the Nesi image and its feature vectors, projected with PCA to three dimensions so that it could be visualized.
+
+| ![](images/nesi-feat-original.png) | ![](images/nesi-feat-pixels.png) | ![](images/nesi-feat-result.png) |
+| :--------------------------------: | :------------------------------: | :------------------------------: |
+|           original image           |        per-pixel features        |      resulting segmentation      |
+
+And it worked!
+
+However, the masks output from this segmentation are quite messy. For example, it would completely miss Nesi's back leg, and would exclude large chunks from some of the pumpkins. In order to fix this, I decided to pass each mask through the [Guided Filter](http://kaiminghe.com/publications/pami12guidedfilter.pdf), which would smooth out the edges based on pixel differences from the original image. I used a very large window size so that the filter would account for the detail lost by superpixels. I tried, struggled with, and eventually abandoned my attempt at applying the guided filter to multiple masks at once in such a way that their sum is exactly 1. The images below show the results of applying each of the guided masks to the original image. While they _look_ like they might add up, the union of these images isn't actually fully opaque.
+
+| ![](images/boys-original.png) | ![](images/boys-segment-1.png) | ![](images/boys-segment-2.png) | ![](images/boys-segment-3.png) |
+| :---------------------------: | :----------------------------: | :----------------------------: | :----------------------------: |
+|        original image         |        first constraint        |       second constraint        |        third constraint        |
+
+At the end of the day, we ended up generating the hierarchy from the output of [DETR](https://scontent-iad3-2.xx.fbcdn.net/v/t39.8562-6/101177000_245125840263462_1160672288488554496_n.pdf), a panoptic segmentation framework. Although DETR itself is unable to isolate distinct features of the instances of an image, such as the gold plane logo on the taller boy’s shirt, we found that the increased representativeness of the local palettes generated from the DETR segments generally allowed them to account for targeted edits to those specific features anyway. The process and code documented in this repository was a worthwhile experiment in the overall research process, even if it wasn't the method we ended up using to generate the hierarchy, and there is still promise in a method based on merging superpixels.
+
+_Future work involves experimenting with variations on the distance metric, such as [CIEDE200 distance](https://en.wikipedia.org/wiki/Color_difference#CIEDE2000), and adapting the program to work with segmentation algorithms that output only classifications such as SETR and then evaluating the differences between integration of those semantic features. Finding a method to ensure every pixel is completely (and not over-) covered after applying a guided filter also worth exploring, as simply dilating the mask before smoothing allows for opacities to sum to values greater than 1._
