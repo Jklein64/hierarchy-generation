@@ -1,6 +1,6 @@
 # Hierarchy Generation
 
-This repository is for code for the automatic generation of a hierarchical segmentation of an image, which is a portion of my research group's project. The general idea is that superpixels can be clustered to form semantic regions which separate constraints.
+This repository is for code for the automatic generation of a hierarchical segmentation of an image, which is my contribution to a research project led by [Ted Chao](https://mason.gmu.edu/~cchao8/) from the [GMU Creativity and Graphics Lab (CraGL)](https://cragl.cs.gmu.edu). The general idea is that superpixels can be clustered to form semantic regions which separate constraints. I worked with the group as part of my [TJHSST senior research](https://tjhsst.fcps.edu/academics/research-program) project during the 2021-2022 school year, but worked with Professor Gingold, the head of [CraGL](https://cragl.cs.gmu.edu), through [ASSIP](https://science.gmu.edu/assip) over the summer of 2021.
 
 # Setup
 
