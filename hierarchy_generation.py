@@ -197,6 +197,7 @@ def constrained_division(superpixels: np.ndarray, previous: np.ndarray, distance
         a, b = constraints_within_threshold(constraint_labels, distances < delta)
     # actually create the labelled image from the connected components
     merged = connected_within_threshold(superpixels, distances < delta)
+    print(f"delta = {delta}")
     # assign regions not containing any constraint to the older one
     constraint_labels = merged[tuple(np.transpose(constraints))]
     for label in np.unique(merged[merged >= 0]): 
